@@ -1,0 +1,12 @@
+PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games"
+PUID=1000
+PGID=999
+TZ="America/Phoenix"
+USERDIR="/home/aradloff"
+MYSQL_ROOT_PASSWORD="L0ckD0wn!"
+HTTP_USERNAME=aradloff
+HTTP_PASSWORD=$apr1$hnaeIQne$E//JscAB6Wm6bHAQKV4Ui.
+DOMAINNAME=adamradloff.com
+CLOUDFLARE_EMAIL=adam.radloff@gmail.com
+CLOUDFLARE_API_KEY=6c3fee72ea744acf8f7e0fb57a9d2aeaac630
+SERVER_IP=192.168.86.107
