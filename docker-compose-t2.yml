@@ -202,12 +202,13 @@ services:
     restart: always
     networks:
       - default
+      - t2_proxy
 #      - traefik_proxy:
 #          ipv4_address: 192.168.50.250 
     ports:
       - "3306:3306"
     volumes:
-      - $USERDIR/docker/mariadb/data:/config
+      - $USERDIR/docker/mariadb:/config
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     environment:
@@ -486,8 +487,50 @@ services:
 
 ############################# MEDIA FILE MANAGEMENT
 
+#Photo album
+  piwigo:
+    image: linuxserver/piwigo
+    container_name: piwigo
+    restart: always
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${USERDIR}/docker/piwigo/config:/config
+      - /mnt/Media/Photos:/config/www/gallery/upload
+    networks:
+      - t2_proxy
+    ports:
+      - '79:80'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.backend=piwigo"
+      - "traefik.frontend.rule=Host:photos.${DOMAINNAME}"  
+#      - "traefik.frontend.rule=Host:${DOMAINNAME}; PathPrefixStrip: /piwigo"
+#      - "traefik.port=80"
+      - "traefik.frontend.headers.SSLRedirect=true"
+      - "traefik.frontend.headers.STSSeconds=315360000"
+      - "traefik.frontend.headers.browserXSSFilter=true"
+      - "traefik.frontend.headers.contentTypeNosniff=true"
+      - "traefik.frontend.headers.forceSTSHeader=true"
+      - "traefik.frontend.headers.SSLHost=photos.${DOMAINNAME}"
+      - "traefik.frontend.headers.STSIncludeSubdomains=true"
+      - "traefik.frontend.headers.STSPreload=true"
+#      - "traefik.frontend.headers.frameDeny: true" #customFrameOptionsValue overrides this
+      - "traefik.frontend.headers.customFrameOptionsValue: allow-from https:${DOMAINNAME}"
+     ## HTTP Routers
+      - "traefik.http.routers.piwigo-rtr.entrypoints=https"
+      - "traefik.http.routers.piwigo-rtr.rule=Host(`photos.$DOMAINNAME`)"
+      - "traefik.http.routers.piwigo-rtr.tls=true"
+      - "traefik.http.routers.piwigo-rtr.tls.certresolver=dns-cloudflare"
+      ## Middlewares
+     # - "traefik.http.routers.piwigo-rtr.middlewares=secure-chain@file"
+      ## HTTP Services
+      - "traefik.http.routers.piwigo-rtr.service=piwigo-svc"
+      - "traefik.http.services.piwigo-svc.loadbalancer.server.port=80"
 
-############################# UTILITIES
+############################# UTILITIES##################################
 
 # Firefox - Web Broswer
   firefox:
@@ -561,7 +604,7 @@ services:
       - "traefik.http.services.glances-svc.loadbalancer.server.port=61208"
 
 
-##Pi Hole##
+########Pi Hole##############
 
   pihole: 
     container_name: pihole 
