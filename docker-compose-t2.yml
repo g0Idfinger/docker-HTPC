@@ -286,7 +286,7 @@ services:
       - "traefik.http.routers.jackett-rtr.tls=true"
       - "traefik.http.routers.jackett-rtr.tls.certresolver=dns-cloudflare"
       ## Middlewares
-      - "traefik.http.routers.jackett-rtr.middlewares=noauth-chain@file"
+      - "traefik.http.routers.jackett-rtr.middlewares=secure-chain@file"
       ## HTTP Services
       - "traefik.http.routers.jackett-rtr.service=jackett-svc"
       - "traefik.http.services.jackett-svc.loadbalancer.server.port=9117"
@@ -505,20 +505,6 @@ services:
       - '79:80'
     labels:
       - "traefik.enable=true"
-      - "traefik.backend=piwigo"
-      - "traefik.frontend.rule=Host:photos.${DOMAINNAME}"  
-#      - "traefik.frontend.rule=Host:${DOMAINNAME}; PathPrefixStrip: /piwigo"
-#      - "traefik.port=80"
-      - "traefik.frontend.headers.SSLRedirect=true"
-      - "traefik.frontend.headers.STSSeconds=315360000"
-      - "traefik.frontend.headers.browserXSSFilter=true"
-      - "traefik.frontend.headers.contentTypeNosniff=true"
-      - "traefik.frontend.headers.forceSTSHeader=true"
-      - "traefik.frontend.headers.SSLHost=photos.${DOMAINNAME}"
-      - "traefik.frontend.headers.STSIncludeSubdomains=true"
-      - "traefik.frontend.headers.STSPreload=true"
-#      - "traefik.frontend.headers.frameDeny: true" #customFrameOptionsValue overrides this
-      - "traefik.frontend.headers.customFrameOptionsValue: allow-from https:${DOMAINNAME}"
      ## HTTP Routers
       - "traefik.http.routers.piwigo-rtr.entrypoints=https"
       - "traefik.http.routers.piwigo-rtr.rule=Host(`photos.$DOMAINNAME`)"
@@ -679,3 +665,43 @@ services:
     cap_add:
       - NET_ADMIN
 
+############################# MAINTENANCE
+
+# Ouroboros - Automatic Docker Container Updates
+  ouroboros:
+    image: pyouroboros/ouroboros
+    container_name: ouroboros
+    hostname: ouroboros
+    restart: unless-stopped
+    networks:
+      - default
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      TZ: ${TZ}
+      INTERVAL: 86400
+      LOG_LEVEL: debug
+      SELF_UPDATE: "true"
+      CLEANUP: "true"
+      IGNORE: traefik addon_core_check_config addon_62c7908d_autobackup plexms
+#      NOTIFIERS: 'tgram://${TGRAM_BOT_TOKEN}/${TGRAM_CHAT_ID}/'
+
+# Docker-GC - Automatic Docker Garbage Collection 
+# Create docker-gc-exclude file
+  dockergc:
+    image: clockworksoul/docker-gc-cron:latest
+    container_name: docker-gc
+    hostname: docker-gc
+    restart: unless-stopped
+    network_mode: none
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    #  - ${USERDIR}/docker/docker-gc/docker-gc-exclude:/etc/docker-gc-exclude
+    environment:
+      CRON: 0 0 * * *
+      FORCE_IMAGE_REMOVAL: 1
+      FORCE_CONTAINER_REMOVAL: 0
+      GRACE_PERIOD_SECONDS: 604800
+      DRY_RUN: 0
+      CLEAN_UP_VOLUMES: 1
+      TZ: ${TZ}
