@@ -1,17 +1,30 @@
 #Reference: https://www.smarthomebeginner.com/traefik-reverse-proxy-tutorial-for-docker
 #Requirement: Set environmental variables: ${$USERDIR}, ${PUID}, ${PGID}, ${TZ}, ${DOMAINNAME}, ${CLOUDFLARE_EMAIL},  ${CLOUDFLARE_API_KEY}, ${HTTP_USERNAME}, ${HTTP_PASSWORD}, etc. as explained in the reference.
 
-version: "3.6" 
+version: "3.7" 
+######### NETWORKS ###########
+networks:
+  # Discovery is manually created to avoid forcing any order of docker-compose stack creation (`docker network create discovery`)
+  # allows other compose files to be seen by proxy
+  # Not required if you aren't using multiple docker-compose files...
+  traefik_proxy:
+    external:
+      name: traefik_proxy
+  default:
+    driver: bridge
+
+
 services: 
 
 ######### FRONTENDS ##########
 
 # Traefik Reverse Proxy
+# Create traefik.toml and rules dir and acme dir before running container.
   traefik:
     hostname: traefik
     image: traefik:v1.7.16
     container_name: traefik
-    restart: always
+    restart: unless-stopped
     domainname: ${DOMAINNAME}
     networks:
       - default
@@ -24,24 +37,30 @@ services:
       - CLOUDFLARE_EMAIL=${CLOUDFLARE_EMAIL}
       - CLOUDFLARE_API_KEY=${CLOUDFLARE_API_KEY}
     labels:
-      - "traefik.enable=true"
-      - "traefik.backend=traefik"
-      - "traefik.frontend.rule=Host:traefik.${DOMAINNAME}"  
-#      - "traefik.frontend.rule=Host:${DOMAINNAME}; PathPrefixStrip: /traefik"
-      - "traefik.port=8080"
-      - "traefik.docker.network=traefik_proxy"
-      - "traefik.frontend.headers.SSLRedirect=true"
-      - "traefik.frontend.headers.STSSeconds=315360000"
-      - "traefik.frontend.headers.browserXSSFilter=true"
-      - "traefik.frontend.headers.contentTypeNosniff=true"
-      - "traefik.frontend.headers.forceSTSHeader=true"
-      - "traefik.frontend.headers.SSLHost=traefik.${DOMAINNAME}"
-      - "traefik.frontend.headers.STSIncludeSubdomains=true"
-      - "traefik.frontend.headers.STSPreload=true"
-      - "traefik.frontend.headers.frameDeny=true"
-      - "traefik.frontend.auth.forward.address=http://oauth:4181"
-      - "traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User"
-      - "traefik.frontend.auth.forward.trustForwardHeader=true"
+      traefik.enable: "true"
+      traefik.backend: traefik
+      traefik.protocol: http
+      traefik.port: 8080
+      traefik.frontend.rule: Host:traefik.${DOMAINNAME}
+#      traefik.frontend.rule: Host:${DOMAINNAME}; PathPrefixStrip: /traefik
+      traefik.frontend.headers.SSLHost: traefik.${DOMAINNAME}
+      traefik.docker.network: traefik_proxy
+      traefik.frontend.passHostHeader: "true"
+      traefik.frontend.headers.SSLForceHost: "true"
+      traefik.frontend.headers.SSLRedirect: "true"
+      traefik.frontend.headers.browserXSSFilter: "true"
+      traefik.frontend.headers.contentTypeNosniff: "true"
+      traefik.frontend.headers.forceSTSHeader: "true"
+      traefik.frontend.headers.STSSeconds: 315360000
+      traefik.frontend.headers.STSIncludeSubdomains: "true"
+      traefik.frontend.headers.STSPreload: "true"
+      traefik.frontend.headers.customResponseHeaders: X-Robots-Tag:noindex,nofollow,nosnippet,noarchive,notranslate,noimageindex
+#      traefik.frontend.headers.frameDeny: "true" #customFrameOptionsValue overrides this
+      traefik.frontend.headers.customFrameOptionsValue: 'allow-from https:${DOMAINNAME}'
+#      traefik.frontend.auth.basic.users: '${HTTP_USERNAME}:${HTTP_PASSWORD}'
+      traefik.frontend.auth.forward.address: "http://oauth:4181"
+      traefik.frontend.auth.forward.authResponseHeaders: X-Forwarded-User
+      traefik.frontend.auth.forward.trustForwardHeader: "true"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ${USERDIR}/docker/traefik:/etc/traefik
@@ -97,72 +116,50 @@ services:
   portainer:
     image: portainer/portainer
     container_name: portainer
-    restart: always
+    restart: unless-stopped
     command: -H unix:///var/run/docker.sock
 #    ports:
 #      - "XXXX:9000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${USERDIR}/docker/portainer/data:/data
-      - ${USERDIR}/docker/shared:/shared
+      #- ${USERDIR}/docker/shared:/shared
     environment:
       - TZ=${TZ}
     networks:
       - traefik_proxy
     labels:
-      - "traefik.enable=true"
-      - "traefik.backend=portainer"
-      - "traefik.frontend.rule=Host:portainer.${DOMAINNAME}"  
-#      - "traefik.frontend.rule=Host:${DOMAINNAME}; PathPrefixStrip: /portainer"
-      - "traefik.port=9000"
-      - "traefik.docker.network=traefik_proxy"
-      - "traefik.frontend.headers.SSLRedirect=true"
-      - "traefik.frontend.headers.STSSeconds=315360000"
-      - "traefik.frontend.headers.browserXSSFilter=true"
-      - "traefik.frontend.headers.contentTypeNosniff=true"
-      - "traefik.frontend.headers.forceSTSHeader=true"
-      - "traefik.frontend.headers.SSLHost=portainer.${DOMAINNAME}"
-      - "traefik.frontend.headers.STSIncludeSubdomains=true"
-      - "traefik.frontend.headers.STSPreload=true"
-      - "traefik.frontend.headers.frameDeny=true"
-# Organizer - Unified HTPC/Home Server Web Interface
-  organizr:
-    container_name: organizr
-    restart: always
-    image: lsiocommunity/organizr
-    volumes:
-      - ${USERDIR}/docker/organizr:/config
-      - ${USERDIR}/docker/shared:/shared
-#    ports:
-#      - "XXXX:80"
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    networks:
-      - traefik_proxy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.backend=organizr"
-      - "traefik.frontend.rule=Host:organizr.${DOMAINNAME}"  
-#      - "traefik.frontend.rule=Host:${DOMAINNAME}; PathPrefixStrip: /organizr"
-      - "traefik.port=80"
-      - "traefik.docker.network=traefik_proxy"
-      - "traefik.frontend.headers.SSLRedirect=true"
-      - "traefik.frontend.headers.STSSeconds=315360000"
-      - "traefik.frontend.headers.browserXSSFilter=true"
-      - "traefik.frontend.headers.contentTypeNosniff=true"
-      - "traefik.frontend.headers.forceSTSHeader=true"
-      - "traefik.frontend.headers.SSLHost=organizr.${DOMAINNAME}"
-      - "traefik.frontend.headers.STSIncludeSubdomains=true"
-      - "traefik.frontend.headers.STSPreload=true"
-      - "traefik.frontend.headers.frameDeny=true"
+      traefik.enable: "true"
+      traefik.backend: portainer
+      traefik.protocol: http
+      traefik.port: 9000
+      traefik.frontend.rule: Host:portainer.${DOMAINNAME}
+#      traefik.frontend.rule: Host${DOMAINNAME}; PathPrefixStrip: /portainer
+      traefik.frontend.headers.SSLHost: portainer.${DOMAINNAME}
+      traefik.docker.network: traefik_proxy
+      traefik.frontend.passHostHeader: "true"
+      traefik.frontend.headers.SSLForceHost: "true"
+      traefik.frontend.headers.SSLRedirect: "true"
+      traefik.frontend.headers.browserXSSFilter: "true"
+      traefik.frontend.headers.contentTypeNosniff: "true"
+      traefik.frontend.headers.forceSTSHeader: "true"
+      traefik.frontend.headers.STSSeconds: 315360000
+      traefik.frontend.headers.STSIncludeSubdomains: "true"
+      traefik.frontend.headers.STSPreload: "true"
+      traefik.frontend.headers.customResponseHeaders: X-Robots-Tag:noindex,nofollow,nosnippet,noarchive,notranslate,noimageindex
+#      traefik.frontend.headers.frameDeny: "true" #customFrameOptionsValue overrides this
+      traefik.frontend.headers.customFrameOptionsValue: 'allow-from https:${DOMAINNAME}'
+      traefik.frontend.auth.forward.address: "http://oauth:4181"
+      traefik.frontend.auth.forward.authResponseHeaders: X-Forwarded-User
+      traefik.frontend.auth.forward.trustForwardHeader: "true"
+      
+     
 # phpMyAdmin - WebUI for MariaDB
   phpmyadmin:
     hostname: phpmyadmin
     container_name: phpmyadmin
     image: phpmyadmin/phpmyadmin
-    restart: always
+    restart: unless-stopped
     links:
       - mariadb:db
 #    ports:
@@ -174,20 +171,28 @@ services:
       - traefik_proxy
       - default
     labels:
-      - "traefik.enable=true"
-      - "traefik.backend=pma"
-      - "traefik.frontend.rule=Host:pma.${DOMAINNAME}"
-      - "traefik.port=80"
-      - "traefik.docker.network=traefik_proxy"
-      - "traefik.frontend.headers.SSLRedirect=true"
-      - "traefik.frontend.headers.STSSeconds=315360000"
-      - "traefik.frontend.headers.browserXSSFilter=true"
-      - "traefik.frontend.headers.contentTypeNosniff=true"
-      - "traefik.frontend.headers.forceSTSHeader=true"
-      - "traefik.frontend.headers.SSLHost=pma.${DOMAINNAME}"
-      - "traefik.frontend.headers.STSIncludeSubdomains=true"
-      - "traefik.frontend.headers.STSPreload=true"
-      - "traefik.frontend.headers.frameDeny=true"
+      traefik.enable: "true"
+      traefik.backend: phpmyadmin
+      traefik.protocol: http
+      traefik.port: 80
+      traefik.frontend.rule: Host:pma.${DOMAINNAME}
+      traefik.frontend.headers.SSLHost: pma.${DOMAINNAME}
+      traefik.docker.network: traefik_proxy
+      traefik.frontend.passHostHeader: "true"
+      traefik.frontend.headers.SSLForceHost: "true"
+      traefik.frontend.headers.SSLRedirect: "true"
+      traefik.frontend.headers.browserXSSFilter: "true"
+      traefik.frontend.headers.contentTypeNosniff: "true"
+      traefik.frontend.headers.forceSTSHeader: "true"
+      traefik.frontend.headers.STSSeconds: 315360000
+      traefik.frontend.headers.STSIncludeSubdomains: "true"
+      traefik.frontend.headers.STSPreload: "true"
+      traefik.frontend.headers.customResponseHeaders: X-Robots-Tag:noindex,nofollow,nosnippet,noarchive,notranslate,noimageindex
+#      traefik.frontend.headers.frameDeny: "true" #customFrameOptionsValue overrides this
+      traefik.frontend.headers.customFrameOptionsValue: 'allow-from https:${DOMAINNAME}'
+      traefik.frontend.auth.forward.address: "http://oauth:4181"
+      traefik.frontend.auth.forward.authResponseHeaders: X-Forwarded-User
+      traefik.frontend.auth.forward.trustForwardHeader: "true"
 
 ##Pi Hole##
 
@@ -240,6 +245,10 @@ services:
       - traefik.frontend.headers.STSIncludeSubdomains=true
       - traefik.frontend.headers.STSPreload=true
       - traefik.frontend.headers.frameDeny=true
+      - traefik.frontend.auth.forward.address=http://oauth:4181
+      - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+      - traefik.frontend.auth.forward.trustForwardHeader=true
+
   dhcphelper:
     build: ./dhcp-helper
     restart: unless-stopped
@@ -298,6 +307,9 @@ services:
       - "traefik.frontend.headers.STSIncludeSubdomains=true"
       - "traefik.frontend.headers.STSPreload=true"
       - "traefik.frontend.headers.frameDeny=true"
+      - traefik.frontend.auth.forward.address=http://oauth:4181
+      - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+      - traefik.frontend.auth.forward.trustForwardHeader=true
 
 ######### PERSONAL VIDEO RECORDERS ##########
 
@@ -336,6 +348,10 @@ services:
       - "traefik.frontend.headers.STSIncludeSubdomains=true"
       - "traefik.frontend.headers.STSPreload=true"
       - "traefik.frontend.headers.frameDeny=true"
+      - traefik.frontend.auth.forward.address=http://oauth:4181
+      - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+      - traefik.frontend.auth.forward.trustForwardHeader=true
+
 
   radarr:
     image: "linuxserver/radarr"
@@ -371,6 +387,10 @@ services:
       - "traefik.frontend.headers.STSIncludeSubdomains=true"
       - "traefik.frontend.headers.STSPreload=true"
       - "traefik.frontend.headers.frameDeny=true"
+      - traefik.frontend.auth.forward.address=http://oauth:4181
+      - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+      - traefik.frontend.auth.forward.trustForwardHeader=true
+
 
 ######### MEDIA SERVER APPS ##########
 
@@ -614,12 +634,4 @@ services:
       - /sys:/host/sys:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
-networks:
-  # Discovery is manually created to avoid forcing any order of docker-compose stack creation (`docker network create discovery`)
-  # allows other compose files to be seen by proxy
-  # Not required if you aren't using multiple docker-compose files...
-  traefik_proxy:
-    external:
-      name: traefik_proxy
-  default:
-    driver: bridge
+
