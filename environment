@@ -10,3 +10,7 @@ DOMAINNAME=adamradloff.com
 CLOUDFLARE_EMAIL=adam.radloff@gmail.com
 CLOUDFLARE_API_KEY=6c3fee72ea744acf8f7e0fb57a9d2aeaac630
 SERVER_IP=192.168.86.107
+GOOGLE_CLIENT_ID=710379786109-416to60b7u7vu1juv6vuttvk6jlj63j0.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=DYTr3aj4SZxLmVzQqKn57kUR
+OAUTH_SECRET=TfVdqBAgo4YD7QeT
+MY_EMAIL=adamradloff@gmail.com
