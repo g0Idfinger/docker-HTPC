@@ -173,7 +173,7 @@ services:
     networks:
       - t2_proxy
 #    ports:
-#      - "9000:9000"
+#      - "$PORTAINER_PORT:9000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - $USERDIR/docker/portainer/data:/data # Change to local directory if you want to save/transfer config locally
@@ -206,7 +206,7 @@ services:
 #      - traefik_proxy:
 #          ipv4_address: 192.168.50.250 
     ports:
-      - "3306:3306"
+      - "${DB_PORT}:3306"
     volumes:
       - $USERDIR/docker/mariadb:/config
       - /etc/timezone:/etc/timezone:ro
@@ -228,8 +228,7 @@ services:
       - t2_proxy
       - default
     ports:
-      #- "$PHPMYADMIN_PORT:80"
-      - "81:81"
+      - "$PHPMYADMIN_PORT:80"
 #    depends_on:
 #      - mariadb
 #    links:
@@ -237,8 +236,8 @@ services:
 #    volumes:
 #      - ${USERDIR}/docker/phpmyadmin:/etc/phpmyadmin
     environment:
-      PMA_HOST: mariadb
-      PMA_PORT: 3306
+      PMA_HOST: ${DB_HOST}
+      PMA_PORT: ${DB_PORT}
 #     PMA_ARBITRARY: 1
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     labels:
@@ -287,7 +286,7 @@ services:
       - "traefik.http.routers.jackett-rtr.tls=true"
       - "traefik.http.routers.jackett-rtr.tls.certresolver=dns-cloudflare"
       ## Middlewares
-      - "traefik.http.routers.jackett-rtr.middlewares=noauth-chain@file"
+      - "traefik.http.routers.jackett-rtr.middlewares=secure-chain@file"
       ## HTTP Services
       - "traefik.http.routers.jackett-rtr.service=jackett-svc"
       - "traefik.http.services.jackett-svc.loadbalancer.server.port=9117"
@@ -322,7 +321,7 @@ services:
       - "traefik.http.routers.jdownloader-rtr.tls=true"
       - "traefik.http.routers.jdownloader-rtr.tls.certresolver=dns-cloudflare"
       ## Middlewares
-      - "traefik.http.routers.jdownloader-rtr.middlewares=noauth-chain@file"
+      - "traefik.http.routers.jdownloader-rtr.middlewares=secure-chain@file"
       ## HTTP Services
       - "traefik.http.routers.jdownloader-rtr.service=jdownloader-svc"
       - "traefik.http.services.jdownloader-svc.loadbalancer.server.port=8168"
@@ -343,7 +342,7 @@ services:
     networks:
       - t2_proxy
     ports:
-      - "7878:7878"
+      - "${RADARR_PORT}:7878"
     volumes:
       - ${USERDIR}/docker/radarr:/config
       - /mnt/Media/Downloads:/downloads
@@ -378,7 +377,7 @@ services:
     networks:
       - t2_proxy
     ports:
-      - "8989:8989"
+      - "${SONARR_PORT}:8989"
     volumes:
       - ${USERDIR}/docker/sonarr:/config
       - /mnt/Media/Downloads:/downloads
@@ -414,7 +413,7 @@ services:
     networks:
       - t2_proxy
     ports:
-      - "32400:32400/tcp"
+      - "${PLEX_PORT}:32400/tcp"
       - "3005:3005/tcp"
       - "8324:8324/tcp"
       - "32469:32469/tcp"
@@ -436,7 +435,7 @@ services:
 #      PLEX_CLAIM: ${PLEX_CLAIM}
       PLEX_UID: ${PUID}
       PLEX_GID: ${PGID}
-      ADVERTISE_IP: http://${SERVER_IP}:32400/
+      ADVERTISE_IP: http://${SERVER_IP}:${PLEX_PORT}/
     labels:
       - "traefik.enable=true"
       ## HTTP Routers
@@ -461,7 +460,7 @@ services:
     networks:
       - t2_proxy
     ports:
-      - "8181:8181"
+      - "${TAUTULLI_PORT}:8181"
     volumes:
       - ${USERDIR}/docker/tautulli/config:/config
       - ${USERDIR}/docker/tautulli/logs:/logs:ro
@@ -501,7 +500,7 @@ services:
     networks:
       - t2_proxy
     ports:
-      - '79:80'
+      - '${PIWIGO_PORT}:80'
     labels:
       - "traefik.enable=true"
      ## HTTP Routers
@@ -570,7 +569,7 @@ services:
 #      - "${GLANCES_PORT}:61208"
     pid: host
     volumes:
-   #   - ${USERDIR}/docker/glances/glances.conf:/glances/conf/glances.conf # Use this if you want to add a glances.conf file
+      - ${USERDIR}/docker/glances/glances.conf:/glances/conf/glances.conf # Use this if you want to add a glances.conf file
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
 #      GLANCES_OPT: "-C /glances/conf/glances.conf --quiet --export influxdb"
@@ -603,11 +602,11 @@ services:
       #traefik_proxy:
        # ipv4_address: '172.18.0.100'
       t2_proxy:
-        ipv4_address: 192.168.90.253
+        ipv4_address: ${PIHOLE_TRAEFIK_IP}
     ports:  
  #     - '67:67/udp'
-      - '192.168.86.107:53:53/tcp'
-      - '192.168.86.107:53:53/udp' 
+      - '${SERVER_IP}:53:53/tcp'
+      - '${SERVER_IP}:53:53/udp' 
       - '9080:80'
       - '9443:443' 
     restart: unless-stopped
@@ -618,7 +617,7 @@ services:
     cap_add:
       - NET_ADMIN
     environment:
-      - ServerIP=192.168.86.107
+      - ServerIP=${SERVER_IP}
       - PROXY_LOCATION=pihole
       - VIRTUAL_HOST=pihole.${DOMAINNAME}
       - VIRTUAL_PORT=80
@@ -660,7 +659,7 @@ services:
     build: ./dhcp-helper
     restart: unless-stopped
     network_mode: "host"
-    command: -s 192.168.90.253
+    command: -s ${PIHOLE_TRAEFIK_IP}
     cap_add:
       - NET_ADMIN
 
