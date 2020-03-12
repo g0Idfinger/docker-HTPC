@@ -263,6 +263,7 @@ services:
   jackett:
     image: linuxserver/jackett
     container_name: jackett
+    hostname: jackett
     restart: always
 #    network_mode: container:transmission-vpn
 #    depends_on:
@@ -286,7 +287,7 @@ services:
       - "traefik.http.routers.jackett-rtr.tls=true"
       - "traefik.http.routers.jackett-rtr.tls.certresolver=dns-cloudflare"
       ## Middlewares
-      - "traefik.http.routers.jackett-rtr.middlewares=secure-chain@file"
+      - "traefik.http.routers.jackett-rtr.middlewares=noauth-chain@file"
       ## HTTP Services
       - "traefik.http.routers.jackett-rtr.service=jackett-svc"
       - "traefik.http.services.jackett-svc.loadbalancer.server.port=9117"
@@ -482,8 +483,6 @@ services:
       ## HTTP Services
       - "traefik.http.routers.tautulli-rtr.service=tautulli-svc"
       - "traefik.http.services.tautulli-svc.loadbalancer.server.port=8181"
-
-
 
 ############################# MEDIA FILE MANAGEMENT
 
