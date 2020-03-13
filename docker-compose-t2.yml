@@ -192,7 +192,39 @@ services:
       - "traefik.http.routers.portainer-rtr.service=portainer-svc"
       - "traefik.http.services.portainer-svc.loadbalancer.server.port=9000"
 
-
+# Organizr - Unified Frontend
+  organizr:
+    container_name: organizr
+    image: organizrtools/organizr-v2:latest
+    restart: unless-stopped
+    networks:
+      - t2_proxy
+#    ports:
+#      - "$ORGANIZR_PORT:80"
+    volumes:
+      - ${USERDIR}/docker/organizr:/config
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.organizr-rtr.entrypoints=https"
+      - "traefik.http.routers.organizr-rtr.rule=Host(`$DOMAINNAME`,`www.$DOMAINNAME`)" 
+      - "traefik.http.routers.organizr-rtr.tls=true"
+      - "traefik.http.routers.organizr-rtr.tls.certresolver=dns-cloudflare"
+      ## Middlewares
+      - "traefik.http.routers.organizr-rtr.middlewares=noauth-chain@file" 
+#      - "traefik.http.middlewares.organizr-headers.headers.customResponseHeaders.sslHost=$DOMAINNAME"
+#      - "traefik.http.middlewares.organizr-headers.headers.customResponseHeaders='X-Robots-Tag:noindex,nofollow,nosnippet,noarchive,notranslate,noimageindex'"
+#      - "traefik.http.middlewares.organizr-headers.headers.browserxssfilter=true"
+#      - "traefik.http.middlewares.organizr-headers.headers.contentsecuritypolicy=frame-ancestors 'none'; object-src 'none'; script-src 'none'; base-uri 'none';"
+#      - "traefik.http.middlewares.organizr-headers.headers.referrerpolicy=same-origin"
+      ## HTTP Services
+      - "traefik.http.routers.organizr-rtr.service=organizr-svc"
+      - "traefik.http.services.organizr-svc.loadbalancer.server.port=80"
+      
 ############################# DATABASE
 
 # MariaDB - MySQL Database
