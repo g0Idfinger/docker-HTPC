@@ -26,7 +26,7 @@ defaultEntryPoints = ["https", "http"]
 
 # Let's encrypt configuration
 [acme]
-email = "adam.radloff@gmail.com" #any email id will work
+email = "email@example.com" #any email id will work
 storage="/etc/traefik/acme/acme.json"
 entryPoint = "https"
 acmeLogging=true 
@@ -35,14 +35,14 @@ onDemand = false #create certificate when container is created
   provider = "cloudflare"
   delayBeforeCheck = 30
 [[acme.domains]]
-   main = "adamradloff.com"
+   main = "exampledomain.com"
 [[acme.domains]]
-   main = "*.adamradloff.com"
+   main = "*.exampledomain.com"
    
 # Connection to docker host system (docker.sock)
 [docker]
 endpoint = "unix:///var/run/docker.sock"
-domain = "adamradloff.com"
+domain = "exampledomain.com"
 watch = true
 # This will hide all docker containers that don't have explicitly  
 # set label to "enable"
