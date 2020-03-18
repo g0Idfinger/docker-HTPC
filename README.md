@@ -2,16 +2,22 @@
 Home Linux Server
 
 Commands:
+
 docker-compose -f docker/docker-compose.yml up -d
+
 sudo glances
 
 Configuration files:
+
 ———————————————————————————————
+
 Use .env file now for variables instead of environment
 
 
 ——————————————————————————————
+
 Create folder dhcp-helper under ~/docker
+
 Create file Dockerfile in ~/docker/dhcp-helper
 
 FROM alpine:latest
@@ -20,6 +26,7 @@ EXPOSE 67 67/udp
 ENTRYPOINT ["dhcp-helper", "-n"]
 
 ————————————————————————————————
+
 HOW TO FIX HOST DNS ISSUES
 
 ### disable systemd-resolved service.
