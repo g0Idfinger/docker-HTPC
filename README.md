@@ -12,7 +12,7 @@ docker-compose -f docker/docker-compose-t2.yml up -d
 ———————————————————————————————
 
 # Environment
-Use .env file now for variables instead of environment
+Use .env file now for variables instead of /etc/environment
 
 
 ——————————————————————————————
