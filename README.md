@@ -66,21 +66,21 @@ Install Ubuntu, Docker and Docker Compose
 7. Start your docker stack "docker-compose -f docker-compose-t2.yml up -d" 
 
 ## Configuration Files:
-  ### Environment
+### Environment
 
     Configure .env with the variables. see .env.example
     Use .env file now for variables instead of /etc/environment
 
-  ### DHCP-Helper for use with PiHole
+### DHCP-Helper for use with PiHole
 
-    Create folder dhcp-helper under ~/docker
-    Create file Dockerfile in ~/docker/dhcp-helper
-    Add:
-    
-      FROM alpine:latest
-      RUN apk --no-cache add dhcp-helper
-      EXPOSE 67 67/udp
-      ENTRYPOINT ["dhcp-helper", "-n"]
+1. Create folder dhcp-helper under ~/docker
+2. Create file Dockerfile in ~/docker/dhcp-helper
+3. Add:
+
+    `FROM alpine:latest`  
+    `RUN apk --no-cache add dhcp-helper`  
+    `EXPOSE 67 67/udp`  
+    `ENTRYPOINT ["dhcp-helper", "-n"]`  
 
 
 # HOW TO FIX HOST DNS ISSUES
