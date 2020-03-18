@@ -3,18 +3,21 @@ Home Linux Server
 
 Commands:
 
-docker-compose -f docker/docker-compose.yml up -d
+Ensure you are in the docker folder as environment variables wont work
 
-sudo glances
+docker-compose -f docker/docker-compose-t2.yml up -d
 
-Configuration files:
+# Configuration Files:
 
 ———————————————————————————————
 
+# Environment
 Use .env file now for variables instead of environment
 
 
 ——————————————————————————————
+
+# DHCP-Helper for use with PiHole
 
 Create folder dhcp-helper under ~/docker
 
