@@ -624,7 +624,7 @@ services:
 
   pihole: 
     container_name: pihole 
-    domainname: silky.fi 
+    domainname: radloff.local 
     hostname: pihole
     image: pihole/pihole:latest
     # network_mode: host
