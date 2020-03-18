@@ -3,49 +3,49 @@
 ## This is built on Ubunto
 The following containers are in the the docker-compose-t2.yml file
 
-### FRONTENDS
+#### FRONTENDS
 
 * Traefik V2 - used for reverse proxy
 * Google Oauth - for security and SSO
 * Portainer - Web GUI to manage docker stacks/containers/images/networks
 * Organizr - for having all mgmt urls in one place
 
-### DATABASE
+#### DATABASE
 
 * MariaDB - DB for some of the containers
 * phpMyAdmin - Manage MariaDB
 
-### DOWNLOADERS
+#### DOWNLOADERS
 
 * qBittorrent - torrent downloader
 
-### INDEXERS
+#### INDEXERS
 * Jackett - Torrent Proxy
 
-### PVRS
+#### PVRS
 * Radarr - Movie Managment
 * Sonarr - TV Shows Management
 
-### MEDIA SERVER
+#### MEDIA SERVER
 * Plex - Media Server
 * Tautulli - Plex stats and monitoring
 * Piwigo - Photo album
 
-### SYSTEM
+#### SYSTEM
 
 * Firefox - web browser
 * Glances - system monitor
 * PiHole - ad blocker
 * dchphelper - used with pihole to allow for dhcp
 
-### MAINTENANCE
+#### MAINTENANCE
 
 * Ouroboros - Automatic Docker Container Updates
 * Docker-GC - Automatic Docker Garbage Collection
 
-# Usage
+## Usage
 
-## Installation
+### Installation
 Install Ubuntu, Docker and Docker Compose
 
 1. Clone the repo.
@@ -65,13 +65,13 @@ Install Ubuntu, Docker and Docker Compose
 6. If using pihole ensure you create the files indicated below for dhcphelper, also if you have host DNS issues read below to troubleshoot/fix
 7. Start your docker stack "docker-compose -f docker-compose-t2.yml up -d" 
 
-## Configuration Files:
-### Environment
+### Configuration Files:
+#### Environment
 
     Configure .env with the variables. see .env.example
     Use .env file now for variables instead of /etc/environment
 
-### DHCP-Helper for use with PiHole
+#### DHCP-Helper for use with PiHole
 
 1. Create folder dhcp-helper under ~/docker
 2. Create file Dockerfile in ~/docker/dhcp-helper
@@ -83,19 +83,19 @@ Install Ubuntu, Docker and Docker Compose
     `ENTRYPOINT ["dhcp-helper", "-n"]`  
 
 
-# HOW TO FIX HOST DNS ISSUES
+## HOW TO FIX HOST DNS ISSUES
 
-### disable systemd-resolved service.
+#### disable systemd-resolved service.
 sudo systemctl disable systemd-resolved.service
 
-### Stop the service
+#### Stop the service
 sudo systemctl stop systemd-resolved.service
 
-#### Then, remove the link to /run/systemd/resolve/stub-resolv.conf in /etc/resolv.conf
+##### Then, remove the link to /run/systemd/resolve/stub-resolv.conf in /etc/resolv.conf
 sudo rm /etc/resolv.conf
 
-### Add a manually created resolv.conf in /etc/
+#### Add a manually created resolv.conf in /etc/
 sudo vim /etc/resolv.conf
 
-### Add your prefered DNS server there
+#### Add your prefered DNS server there
 nameserver <IP OF HOST>
