@@ -146,7 +146,7 @@ services:
 
   pihole: 
     container_name: pihole 
-    domainname: silky.fi 
+    domainname:  
     hostname: pihole
     image: pihole/pihole:latest
     # network_mode: host
@@ -174,7 +174,7 @@ services:
       - VIRTUAL_HOST=pihole.${DOMAINNAME}
       - VIRTUAL_PORT=80
       - TZ=${TZ}
-      - WEBPASSWORD=L0ckD0wn!
+      - WEBPASSWORD=
       - DNS1=1.1.1.1
       - DNS2=1.0.0.1
       - DNSMASQ_LISTENING=all
