@@ -443,7 +443,7 @@ services:
 
 # Plex - Media Server
   plexms:
-    image: plexinc/pms-docker:public
+    image: plexinc/pms-docker:beta
     container_name: plexms
     hostname: plexms
     restart: unless-stopped
@@ -550,6 +550,122 @@ services:
       ## HTTP Services
       - "traefik.http.routers.piwigo-rtr.service=piwigo-svc"
       - "traefik.http.services.piwigo-svc.loadbalancer.server.port=80"
+
+# Handbrake - Video Conversion (Transcoding and compression)
+  handbrake:
+    image: jlesage/handbrake
+    container_name: handbrake
+    hostname: handbrake
+    restart: unless-stopped
+    networks:
+      - t2_proxy
+#    ports:
+#      - "${HANDBRAKE_PORT}:5800"
+    volumes:
+      - /mnt/Media/Downloads:/downloads:ro
+      - ${USERDIR}/docker/handbrake/config:/config:rw
+      - ${USERDIR}/docker/handbrake/watch:/watch:rw
+      - /mnt/Media/wip_media:/output:rw
+    environment:
+      USER_ID: ${PUID}
+      GROUP_ID: ${PGID}
+      UMASK: 002
+      TZ: ${TZ}
+      KEEP_APP_RUNNING: 1
+      CLEAN_TMP_DIR: 1
+      DISPLAY_WIDTH: 1600
+      DISPLAY_HEIGHT: 960
+      AUTOMATED_CONVERSION_KEEP_SOURCE: 1
+      VNC_PASSWORD: ${HANDBRAKE_VNC_PASSWD}
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.handbrake-rtr.entrypoints=https"
+      - "traefik.http.routers.handbrake-rtr.rule=Host(`handbrake.$DOMAINNAME`)"
+      - "traefik.http.routers.handbrake-rtr.tls=true"
+      - "traefik.http.routers.handbrake-rtr.tls.certresolver=dns-cloudflare"
+      ## Middlewares
+      - "traefik.http.routers.handbrake-rtr.middlewares=secure-chain@file"
+      ## HTTP Services
+      - "traefik.http.routers.handbrake-rtr.service=handbrake-svc"
+      - "traefik.http.services.handbrake-svc.loadbalancer.server.port=5800"
+
+# MKVToolNix - Video Editing (Remuxing - changing media container while keeping original source quality)
+  mkvtoolnix:
+    image: jlesage/mkvtoolnix
+    container_name: mkvtoolnix
+    hostname: mkvtoolnix
+    restart: unless-stopped
+    networks:
+      - t2_proxy
+#    ports:
+#      - "${MKVTOOLNIX_PORT}:5800"
+    volumes:
+      - /mnt/Media:/downloads:rw
+      - ${USERDIR}/docker/mkvtoolnix/config:/config:rw
+    environment:
+      USER_ID: ${PUID}
+      GROUP_ID: ${PGID}
+      UMASK: 002
+      TZ: ${TZ}
+      KEEP_APP_RUNNING: 1
+      CLEAN_TMP_DIR: 1
+      DISPLAY_WIDTH: 1600
+      DISPLAY_HEIGHT: 960
+      VNC_PASSWORD: ${MKVTOOLNIX_VNC_PASSWD}
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.mkvtoolnix-rtr.entrypoints=https"
+      - "traefik.http.routers.mkvtoolnix-rtr.rule=Host(`mkvtoolnix.$DOMAINNAME`)"
+      - "traefik.http.routers.mkvtoolnix-rtr.tls=true"
+      - "traefik.http.routers.mkvtoolnix-rtr.tls.certresolver=dns-cloudflare"
+      ## Middlewares
+      - "traefik.http.routers.mkvtoolnix-rtr.middlewares=secure-chain@file"
+      ## HTTP Services
+      - "traefik.http.routers.mkvtoolnix-rtr.service=mkvtoolnix-svc"
+      - "traefik.http.services.mkvtoolnix-svc.loadbalancer.server.port=5800"
+
+# MakeMKV - Video Editing (Ripping from Disks)
+  makemkv:
+    image: jlesage/makemkv
+    container_name: makemkv
+    hostname: makemkv
+    restart: unless-stopped
+    networks:
+      - t2_proxy
+#    ports:
+#      - "${MAKEMKV_PORT}:5800"
+    volumes:
+      - /mnt/Media/Downloads:/Downloads:rw
+      - ${USERDIR}/docker/makemkv/config:/config:rw
+      - /mnt/Media/wip_media:/output:rw
+      - /dev/shm:/dev/shm
+      - /mnt/Media/Shows:/Shows:rw
+      - /mnt/Media/Movies:/Movies:rw
+    environment:
+      USER_ID: ${PUID}
+      GROUP_ID: ${PGID}
+      UMASK: 002
+      TZ: ${TZ}
+      KEEP_APP_RUNNING: 1
+      CLEAN_TMP_DIR: 1
+      DISPLAY_WIDTH: 1600
+      DISPLAY_HEIGHT: 960
+      VNC_PASSWORD: ${MAKEMKV_VNC_PASSWD}
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.makemkv-rtr.entrypoints=https"
+      - "traefik.http.routers.makemkv-rtr.rule=Host(`makemkv.$DOMAINNAME`)"
+      - "traefik.http.routers.makemkv-rtr.tls=true"
+      - "traefik.http.routers.makemkv-rtr.tls.certresolver=dns-cloudflare"
+      ## Middlewares
+      - "traefik.http.routers.makemkv-rtr.middlewares=secure-chain@file"
+      ## HTTP Services
+      - "traefik.http.routers.makemkv-rtr.service=makemkv-svc"
+      - "traefik.http.services.makemkv-svc.loadbalancer.server.port=5800"
+
 
 ############################# UTILITIES##################################
 
