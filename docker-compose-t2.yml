@@ -270,7 +270,7 @@ services:
 #      - "$PHPMYADMIN_PORT:80"
 # 
 #    volumes:
-#      - ${USERDIR}/docker/phpmyadmin:/etc/phpmyadmin
+#      - $USERDIR/docker/phpmyadmin:/etc/phpmyadmin
     environment:
       PMA_HOST: $DB_HOST
       PMA_PORT: $DB_PORT
@@ -469,7 +469,7 @@ services:
       - /mnt/Media:/media
       - $USERDIR/docker/shared:/shared
       - /dev/shm:/transcode # Offload transcoding to RAM if you have enough RAM
-#      - ${USERDIR}/Downloads/plex_tmp:/transcode
+#      - $USERDIR/Downloads/plex_tmp:/transcode
     environment:
       TZ: $TZ
       HOSTNAME: "Docker Plex"
@@ -607,7 +607,7 @@ services:
     security_opt:
       - no-new-privileges:true
 #    ports:
-#      - "${MKVTOOLNIX_PORT}:5800"
+#      - "$MKVTOOLNIX_PORT:5800"
     volumes:
       - /mnt/Media:/downloads:rw
       - $USERDIR/docker/mkvtoolnix/config:/config:rw
@@ -871,4 +871,4 @@ services:
       GRACE_PERIOD_SECONDS: 604800
       DRY_RUN: 0
       CLEAN_UP_VOLUMES: 1
-      TZ: ${TZ}
+      TZ: $TZ
