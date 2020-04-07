@@ -1,5 +1,5 @@
 #Reference: https://www.smarthomebeginner.com/traefik-reverse-proxy-tutorial-for-docker
-#Requirement: Set environmental variables: ${$USERDIR}, ${PUID}, ${PGID}, ${TZ}, ${DOMAINNAME}, ${CLOUDFLARE_EMAIL},  ${CLOUDFLARE_API_KEY}, ${HTTP_USERNAME}, ${HTTP_PASSWORD}, etc. as explained in the reference.
+#Requirement: Set environmental variables: $$USERDIR, $PUID, $PGID, $TZ, $DOMAINNAME, $CLOUDFLARE_EMAIL,  $CLOUDFLARE_API_KEY, $HTTP_USERNAME, $HTTP_PASSWORD, etc. as explained in the reference.
 
 version: "3.7"
 
