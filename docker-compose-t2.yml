@@ -213,7 +213,7 @@ services:
       - "traefik.http.routers.organizr-rtr.entrypoints=https"
       - "traefik.http.routers.organizr-rtr.rule=Host(`$DOMAINNAME`,`www.$DOMAINNAME`)" 
       - "traefik.http.routers.organizr-rtr.tls=true"
-   #   - "traefik.http.routers.organizr-rtr.tls.certresolver=dns-cloudflare"
+#      - "traefik.http.routers.organizr-rtr.tls.certresolver=dns-cloudflare"
       ## Middlewares
       - "traefik.http.routers.organizr-rtr.middlewares=noauth-chain@file" 
 #      - "traefik.http.middlewares.organizr-headers.headers.customResponseHeaders.sslHost=$DOMAINNAME"
