@@ -102,7 +102,7 @@ services:
       - "traefik.http.routers.traefik-rtr.tls.domains[0].main=$DOMAINNAME"
       - "traefik.http.routers.traefik-rtr.tls.domains[0].sans=*.$DOMAINNAME"
       ## Middlewares
-      - "traefik.http.routers.traefik-rtr.middlewares=traefik-headers,rate-limit@file,oauth@file" #basic-auth@file
+      - "traefik.http.routers.traefik-rtr.middlewares=traefik-headers,middlewares-rate-limit@file" #,middlewares-rate-limit@file,rate-limit@file,oauth@file
       - "traefik.http.middlewares.traefik-headers.headers.accesscontrolallowmethods=GET, OPTIONS, PUT"
       - "traefik.http.middlewares.traefik-headers.headers.accesscontrolalloworigin=https://$DOMAINNAME"
       - "traefik.http.middlewares.traefik-headers.headers.accesscontrolmaxage=100"
@@ -763,8 +763,6 @@ services:
     depends_on:
       - dhcphelper
     networks:
-      #traefik_proxy:
-       # ipv4_address: '172.18.0.100'
       t2_proxy:
         ipv4_address: $PIHOLE_TRAEFIK_IP
     security_opt:
@@ -789,6 +787,7 @@ services:
       - VIRTUAL_PORT=80
       - TZ=$TZ
       - WEBPASSWORD=
+#      - DNS1='192.168.90.251#5054'
       - DNS1=1.1.1.2
       - DNS2=1.0.0.2
       - DNSMASQ_LISTENING=all
@@ -827,6 +826,19 @@ services:
     command: -s $PIHOLE_TRAEFIK_IP
     cap_add:
       - NET_ADMIN
+
+#  cloudflared:
+#    container_name: cloudflared
+#    image: visibilityspots/cloudflared:amd64
+#    restart: unless-stopped
+#    networks:
+#      t2_proxy:
+#        ipv4_address: 192.168.90.251  
+#    security_opt:
+#      - no-new-privileges:true
+#    environment:
+#      - DNS1=1.1.1.2
+#      - DNS2=1.0.0.2 
 
 ############################# MAINTENANCE
 
