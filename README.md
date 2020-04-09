@@ -50,10 +50,12 @@ Install Ubuntu, Docker and Docker Compose
 
 1. Clone the repo.
 2. Create files for Traefik
-    touch $USERDIR/docker/traefik2/acme/acme.json
-    chmod 600 $USERDIR/docker/traefik2/acme/acme.json
-    touch $USERDIR/docker/traefik2/traefik.log 
+
+    * touch $USERDIR/docker/traefik2/acme/acme.json
+    * chmod 600 $USERDIR/docker/traefik2/acme/acme.json
+    * touch $USERDIR/docker/traefik2/traefik.log 
     * For other providers other than cloudflare, [check here](https://docs.traefik.io/v2.0/https/acme/#providers).
+    
 3. (Optional) Enable or use HTTP Basic Authentication by renaming `shared\.htpasswd.example` to `shared\.htpasswd` in the folder and adding username and hashed password to it. 
 4. Configure environmental variables (`.env` file)
   * Rename the included `.env.example` to `.env`.
