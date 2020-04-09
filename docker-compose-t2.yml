@@ -102,7 +102,7 @@ services:
       - "traefik.http.routers.traefik-rtr.tls.domains[0].main=$DOMAINNAME"
       - "traefik.http.routers.traefik-rtr.tls.domains[0].sans=*.$DOMAINNAME"
       ## Middlewares
-      - "traefik.http.routers.traefik-rtr.middlewares=traefik-headers,middlewares-rate-limit@file" #,middlewares-rate-limit@file,rate-limit@file,oauth@file
+      - "traefik.http.routers.traefik-rtr.middlewares=traefik-headers,middlewares-rate-limit@file,chain-oauth@file" #,middlewares-rate-limit@file,rate-limit@file,oauth@file
       - "traefik.http.middlewares.traefik-headers.headers.accesscontrolallowmethods=GET, OPTIONS, PUT"
       - "traefik.http.middlewares.traefik-headers.headers.accesscontrolalloworigin=https://$DOMAINNAME"
       - "traefik.http.middlewares.traefik-headers.headers.accesscontrolmaxage=100"
