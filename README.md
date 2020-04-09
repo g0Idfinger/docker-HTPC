@@ -49,19 +49,18 @@ The following containers are in the the docker-compose-t2.yml file
 Install Ubuntu, Docker and Docker Compose
 
 1. Clone the repo.
-2. Configure `traefik.toml`
-  * Rename `traefik\traefik.toml.example` to `traefik\traefik.toml`
-  * Edit it to reflect your situation
-  * Edit domain name. 
-  * DNS Challenge (for LetsEncrypt verification) is enabled by default for cloudflare. 
-  * For other providers other than cloudflare, [check here](https://docs.traefik.io/v2.0/https/acme/#providers).
+2. Create files for Traefik
+    touch $USERDIR/docker/traefik2/acme/acme.json
+    chmod 600 $USERDIR/docker/traefik2/acme/acme.json
+    touch $USERDIR/docker/traefik2/traefik.log 
+    * For other providers other than cloudflare, [check here](https://docs.traefik.io/v2.0/https/acme/#providers).
 3. (Optional) Enable or use HTTP Basic Authentication by renaming `shared\.htpasswd.example` to `shared\.htpasswd` in the folder and adding username and hashed password to it. 
 4. Configure environmental variables (`.env` file)
   * Rename the included `.env.example` to `.env`.
   * Edit variables in `.env` file. 
   * All variables (ie. `${XXX}`) in docker-compose.yml come from `.env` file stored in the same place as docker-compose.yml. 
   * Ensure good permissions for the `.env` file (recommended: 640).
-5. Edit `docker-compose.yml` to include only the services you want or add additional services to it. 
+5. Edit `docker-compose-t2.yml` to include only the services you want or add additional services to it. 
 6. If using pihole ensure you create the files indicated below for dhcphelper, also if you have host DNS issues read below to troubleshoot/fix
 7. Start your docker stack "docker-compose -f docker-compose-t2.yml up -d" 
 
