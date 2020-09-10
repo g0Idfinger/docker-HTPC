@@ -6,9 +6,9 @@ The following containers are in the the docker-compose-t2.yml file
 #### FRONTENDS
 
 * Traefik V2 - used for reverse proxy
-* Google Oauth - for security and SSO
+* Authelia - private forwad auth with DUO push
 * Portainer - Web GUI to manage docker stacks/containers/images/networks
-* Organizr - for having all mgmt urls in one place
+* Heimdall - for having all mgmt urls in one place
 
 #### DATABASE
 
