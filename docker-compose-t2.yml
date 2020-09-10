@@ -239,52 +239,7 @@ services:
       - CONTAINERS_DELETE=1 # WatchTower
       - IMAGES_DELETE=1 # WatchTower
 
-  # Google OAuth - Single Sign On using OAuth 2.0
-  # https://hub.docker.com/r/thomseddon/traefik-forward-auth
-  # https://www.smarthomebeginner.com/google-oauth-with-traefik-docker/
-  oauth:
-    container_name: oauth
-    image: thomseddon/traefik-forward-auth:latest
-    # image: thomseddon/traefik-forward-auth:2.1-arm # Use this image with Raspberry Pi
-    restart: unless-stopped
-    networks:
-      - t2_proxy
-    security_opt:
-      - no-new-privileges:true
-    # Allow apps to bypass OAuth. Radarr example below will bypass OAuth if API key is present in the request (eg. from NZB360 mobile app).
-    # While this is one way, the recommended way is to bypass authentication using Traefik labels shown in some of the apps later.
-    # command: --rule.radarr.action=allow --rule.radarr.rule="Headers(`X-Api-Key`, `$RADARR_API_KEY`)"
-    # command: --rule.sabnzbd.action=allow --rule.sabnzbd.rule="HeadersRegexp(`X-Forwarded-Uri`, `$SABNZBD_API_KEY`)"
-    environment:
-      - CLIENT_ID=/run/secrets/google_client_id
-      - CLIENT_SECRET=/run/secrets/google_client_secret
-      - SECRET=/run/secrets/oauth_secret
-      - COOKIE_DOMAIN=$DOMAINNAME
-      - INSECURE_COOKIE=false
-      - AUTH_HOST=oauth.$DOMAINNAME
-      - URL_PATH=/_oauth
-      - WHITELIST_FILE=/run/secrets/my_email
-      - LOG_LEVEL=warn
-      - LOG_FORMAT=text
-      - LIFETIME=2592000 # 30 days
-      - DEFAULT_ACTION=auth
-      - DEFAULT_PROVIDER=google
-    secrets:
-      - google_client_id
-      - google_client_secret
-      - oauth_secret
-      - my_email
-    labels:
-      - "traefik.enable=true"
-      ## HTTP Routers
-      - "traefik.http.routers.oauth-rtr.entrypoints=https"
-      - "traefik.http.routers.oauth-rtr.rule=HostHeader(`oauth.$DOMAINNAME`)"
-      ## Middlewares
-      - "traefik.http.routers.oauth-rtr.middlewares=chain-oauth@file"
-      ## HTTP Services
-      - "traefik.http.routers.oauth-rtr.service=oauth-svc"
-      - "traefik.http.services.oauth-svc.loadbalancer.server.port=4181"
-
+#### AUTHENTICATION 
   # Authelia (Lite) - Self-Hosted Single Sign-On and Two-Factor Authentication
   authelia:
     container_name: authelia
@@ -352,38 +307,6 @@ services:
       - "traefik.http.routers.portainer-rtr.service=portainer-svc"
       - "traefik.http.services.portainer-svc.loadbalancer.server.port=9000"
 
-  # Organizr - Unified Frontend
-  organizr:
-    container_name: organizr
-    image: organizrtools/organizr-v2:latest
-    restart: unless-stopped
-    networks:
-      - t2_proxy
-    security_opt:
-      - no-new-privileges:true
-    # ports:
-    #   - "$ORGANIZR_PORT:80"
-    volumes:
-      - $DOCKERDIR/organizr:/config
-    environment:
-      - PUID=$PUID
-      - PGID=$PGID
-      - TZ=$TZ
-    labels:
-      - "traefik.enable=true"
-      ## HTTP Routers
-      - "traefik.http.routers.organizr-rtr.entrypoints=https"
-      - "traefik.http.routers.organizr-rtr.rule=HostHeader(`$DOMAINNAME`) || HostHeader(`www.$DOMAINNAME`)"
-      ## Middlewares
-      - "traefik.http.routers.organizr-rtr.middlewares=organizr-redirect@docker,chain-authelia@file"
-        # Redirect non-www to www middleware
-      - "traefik.http.middlewares.organizr-redirect.redirectregex.regex=^https?://$DOMAINNAME/(.*)"
-      - "traefik.http.middlewares.organizr-redirect.redirectregex.replacement=https://www.$DOMAINNAME/$${1}"
-      - "traefik.http.middlewares.organizr-redirect.redirectregex.permanent=true"
-      ## HTTP Services
-      - "traefik.http.routers.organizr-rtr.service=organizr-svc"
-      - "traefik.http.services.organizr-svc.loadbalancer.server.port=80"
-
   # Heimdall - Unified Frontend Alternative
   # Putting all services behind Oragnizr slows things down.
   heimdall:
@@ -413,32 +336,7 @@ services:
       - "traefik.http.routers.heimdall-rtr.service=heimdall-svc"
       - "traefik.http.services.heimdall-svc.loadbalancer.server.port=80"
 
-  # Autoindex - Simple Directory Index
-  autoindex:
-    container_name: autoindex
-    image: dceoy/nginx-autoindex:latest
-    restart: always
-    networks:
-      - t2_proxy
-    security_opt:
-      - no-new-privileges:true
-    # ports:
-    #   - "$AUTOINDEX_PORT:80"
-    volumes:
-      - /media:/var/lib/nginx/html:ro # Location you want to index
-    labels:
-      - "traefik.enable=true"
-      ## HTTP Routers
-      - "traefik.http.routers.autoindex-rtr.entrypoints=https"
-      - "traefik.http.routers.autoindex-rtr.rule=HostHeader(`index.$DOMAINNAME`)"
-      ## Middlewares
-      - "traefik.http.routers.autoindex-rtr.middlewares=chain-authelia@file"
-      ## HTTP Services
-      - "traefik.http.routers.autoindex-rtr.service=autoindex-svc"
-      - "traefik.http.services.autoindex-svc.loadbalancer.server.port=80"
-
- 
-  ############################# DATABASE
+    ############################# DATABASE
   # MariaDB - MySQL Database
   # After starting container for first time dexec and mysqladmin -u root password <password>
   mariadb:
