@@ -1,6 +1,12 @@
 # Changelog
 ## Planned: 
 * Find a photo organzir that supports HEIC. 
+## September 10, 2020
+* Switched to authelia, removed google auth
+* Added Secrets
+* Added Guacamole
+* Added Cloudflare Companian
+* Added Cloudflare DDNS
 ## April 23, 2020
 * Added a section for qbittorrent with vpn built into the same container
 * Added configuration for Jackett to use VPN
