@@ -1,6 +1,9 @@
 # Changelog
 ## Planned: 
 * Find a photo organzir that supports HEIC. 
+
+## October 5, 2020
+* Updated readme with missing steps.
 ## September 10, 2020
 * Switched to authelia, removed google auth
 * Added Secrets
