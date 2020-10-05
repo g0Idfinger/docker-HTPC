@@ -50,11 +50,11 @@ Install Ubuntu, Docker and Docker Compose
 
 1. Clone the repo.
 2. Create files for Traefik
-    * mkdir $USERDIR/docker/traefik2/
-    * mkdir $USERDIR/docker/traefik2/acme
-    * touch $USERDIR/docker/traefik2/acme/acme.json
-    * chmod 600 $USERDIR/docker/traefik2/acme/acme.json
-    * touch $USERDIR/docker/traefik2/traefik.log 
+    * mkdir $USERDIR/docker-HTPC/traefik2/
+    * mkdir $USERDIR/docker-HTPC/traefik2/acme
+    * touch $USERDIR/docker-HTPC/traefik2/acme/acme.json
+    * chmod 600 $USERDIR/docker-HTPC/traefik2/acme/acme.json
+    * touch $USERDIR/docker-HTPC/traefik2/traefik.log 
     * For other providers other than cloudflare, [check here](https://docs.traefik.io/v2.0/https/acme/#providers).
     
 3. You will have to put your sensitive information in files. Create folder/files for Docker Secrets
@@ -101,7 +101,7 @@ Install Ubuntu, Docker and Docker Compose
 #### DHCP-Helper for use with PiHole
 
 1. Create folder dhcp-helper under ~/docker
-2. Create file Dockerfile in ~/docker/dhcp-helper
+2. Create file Dockerfile in ~/docker-HTPC/dhcp-helper
 3. Add:
 
     `FROM alpine:latest`  
