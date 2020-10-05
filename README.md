@@ -57,15 +57,40 @@ Install Ubuntu, Docker and Docker Compose
     * touch $USERDIR/docker/traefik2/traefik.log 
     * For other providers other than cloudflare, [check here](https://docs.traefik.io/v2.0/https/acme/#providers).
     
-3. (Optional) Enable or use HTTP Basic Authentication by renaming `shared\.htpasswd.example` to `shared\.htpasswd` in the folder and adding username and hashed password to it. 
-4. Configure environmental variables (`.env` file)
+3. You will have to put your sensitive information in files. Create folder/files for Docker Secrets
+    * mkdir $USERDIR/docker-HTPC/secrets
+    * chmod 600 $USERDIR/docker-HTPC/secrets
+    * sudo su
+    * cd $USERDIR/docker-HTPC/secrets
+    * make your files for each individual credentials or APIs that you want to use.  I have created the following files and entered in the corresponding info:
+         * authelia_duo_api_secret_key
+         * authelia_jwt_secret
+         * authelia_notifier_smtp_password
+         * authelia_session_secret
+         * authelia_storage_mysql_password
+         * cloudflare_api_key
+         * cloudflare_email
+         * cloudflare_zoneid
+         * google_client_id
+         * google_client_secret
+         * guac_db_name
+         * guac_mysql_password
+         * guac_mysql_user
+         * my_email
+         * mysql_root_password
+         * oauth_secret
+         * plex_claim
+         * RADARR_API_KEY
+    
+4. (Optional) Enable or use HTTP Basic Authentication by renaming `shared\.htpasswd.example` to `shared\.htpasswd` in the folder and adding username and hashed password to it. 
+5. Configure environmental variables (`.env` file)
   * Rename the included `.env.example` to `.env`.
   * Edit variables in `.env` file. 
   * All variables (ie. `${XXX}`) in docker-compose.yml come from `.env` file stored in the same place as docker-compose.yml. 
   * Ensure good permissions for the `.env` file (recommended: 640).
-5. Edit `docker-compose-t2.yml` to include only the services you want or add additional services to it. 
-6. If using pihole ensure you create the files indicated below for dhcphelper, also if you have host DNS issues read below to troubleshoot/fix
-7. Start your docker stack "docker-compose -f docker-compose-t2.yml up -d" 
+6. Edit `docker-compose-t2.yml` to include only the services you want or add additional services to it. 
+7. If using pihole ensure you create the files indicated below for dhcphelper, also if you have host DNS issues read below to troubleshoot/fix
+8. Start your docker stack "docker-compose -f docker-compose-t2.yml up -d" 
 
 ### Configuration Files:
 #### Environment
