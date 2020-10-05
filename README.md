@@ -50,7 +50,8 @@ Install Ubuntu, Docker and Docker Compose
 
 1. Clone the repo.
 2. Create files for Traefik
-
+    * mkdir $USERDIR/docker/traefik2/
+    * mkdir $USERDIR/docker/traefik2/acme
     * touch $USERDIR/docker/traefik2/acme/acme.json
     * chmod 600 $USERDIR/docker/traefik2/acme/acme.json
     * touch $USERDIR/docker/traefik2/traefik.log 
