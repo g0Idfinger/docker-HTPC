@@ -614,7 +614,7 @@ services:
       PLEX_CLAIM_FILE: /run/secrets/plex_claim
       PLEX_UID: $PUID
       PLEX_GID: $PGID
-      ADVERTISE_IP: http://$SERVER_IP:$PLEX_PORT/
+      ADVERTISE_IP: http://$SERVER_IP:$PLEX_PORT/,https://plex.$DOMAINNAME
     secrets:
       - plex_claim
     labels:
