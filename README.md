@@ -48,7 +48,16 @@ The following containers are in the the docker-compose-t2.yml file
 ### Installation
 Install Ubuntu, Docker and Docker Compose
 
-1. Clone the repo.
+### Clone the repo.
+1. Create .env file for environmental variables, make sure to change USER to your username
+    * nano $USERDIR/docker-HTPC/.env
+      ```
+      PUID=1000
+      PGID=140
+      TZ="America/New_York"
+      USERDIR="/home/USER"
+      DOCKERDIR="/home/USER/docker-HTPC"
+      ```
 2. Create files for Traefik
     * mkdir $USERDIR/docker-HTPC/traefik2/
     * mkdir $USERDIR/docker-HTPC/traefik2/acme
