@@ -47,6 +47,14 @@ The following containers are in the the docker-compose-t2.yml file
 
 ### Installation
 Install Ubuntu, Docker and Docker Compose
+
+### Docker Install
+* `sudo apt-get install apt-transport-https ca-certificates curl software-properties-common`
+* `curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -`
+* `sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"`
+* `sudo apt update`
+* `sudo apt install docker-ce`
+* `sudo docker run hello-world` To test docker
 * `sudo useradd -m username` optional to create a different user
    * `sudo passwd username` to set password
 * `sudo usermod -aG docker ${USER}` to assign to docker group
