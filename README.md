@@ -61,14 +61,8 @@ Install Ubuntu, Docker and Docker Compose
 
 ### Clone the repo.
 1. Create .env file for environmental variables, make sure to change USER to your username
-    * nano $USERDIR/docker-HTPC/.env
-      ```
-      PUID=1000
-      PGID=140
-      TZ="America/New_York"
-      USERDIR="/home/USER"
-      DOCKERDIR="/home/USER/docker-HTPC"
-      ```
+    * `mv $USERDIR/docker-HTPC/.env.example $USERDIR/docker-HTPC/.env`
+    * edit the variables to your liking, comment out ones you don't need and vice versa
 2. Create files for Traefik
     * mkdir $USERDIR/docker-HTPC/traefik2/
     * mkdir $USERDIR/docker-HTPC/traefik2/acme
