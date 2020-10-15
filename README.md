@@ -47,8 +47,9 @@ The following containers are in the the docker-compose-t2.yml file
 
 ### Installation
 Install Ubuntu, Docker and Docker Compose
-
-* `sudo usermod -aG docker ${USER}`
+* `sudo useradd -m username` optional to create a different user
+   * `sudo passwd username` to set password
+* `sudo usermod -aG docker ${USER}` to assign to docker group
 
 ### Clone the repo.
 1. Create .env file for environmental variables, make sure to change USER to your username
