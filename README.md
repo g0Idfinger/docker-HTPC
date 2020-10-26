@@ -140,15 +140,3 @@ sudo vim /etc/resolv.conf
 
 #### Add your prefered DNS server there
 nameserver <IP OF HOST>
-   
-## Dark Mode for pihole
-
-* Console into docker container
-   
-   `docker exec -it pihole /bin/bash`
-
-1. `cd /var/www/html/admin/style/vendor/`
-2. `sudo git clone https://github.com/jacobbates/pi-hole-midnight.git`
-3. `sudo rm -f skin-blue.min.css`
-4. `sudo cp pi-hole-midnight/skin-blue.min.css .`
-5. `sudo rm -rf pi-hole-midnight`
