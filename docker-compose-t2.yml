@@ -69,7 +69,7 @@ services:
   # touch $DOCKERDIR/traefik2/traefik.log
   traefik:
     container_name: traefik
-    image: traefik:chevrotin # the chevrotin tag refers to v2.2.x
+    image: traefik:picodon # the chevrotin tag refers to v2.2.x
     restart: unless-stopped
     command: # CLI arguments
       - --global.checkNewVersion=true
@@ -500,7 +500,7 @@ services:
   # Set url_base in radarr settings if using PathPrefix
   radarr:
     # image: aront/radarr #for mp4_automator support
-    image: linuxserver/radarr:preview
+    image: linuxserver/radarr:nightly
     container_name: radarr
     restart: unless-stopped
     networks:
