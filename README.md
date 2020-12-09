@@ -48,7 +48,21 @@ The following containers are in the the docker-compose-t2.yml file
 ### Installation
 Install Ubuntu, Docker and Docker Compose
 
-1. Clone the repo.
+### Docker Install
+* `sudo apt-get install apt-transport-https ca-certificates curl software-properties-common`
+* `curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -`
+* `sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"`
+* `sudo apt update`
+* `sudo apt install docker-ce`
+* `sudo docker run hello-world` To test docker
+* `sudo useradd -m username` optional to create a different user
+   * `sudo passwd username` to set password
+* `sudo usermod -aG docker ${USER}` to assign to docker group
+
+### Clone the repo.
+1. Create .env file for environmental variables, make sure to change USER to your username
+    * `mv $USERDIR/docker-HTPC/.env.example $USERDIR/docker-HTPC/.env`
+    * edit the variables to your liking, comment out ones you don't need and vice versa
 2. Create files for Traefik
     * mkdir $USERDIR/docker-HTPC/traefik2/
     * mkdir $USERDIR/docker-HTPC/traefik2/acme
@@ -126,15 +140,3 @@ sudo vim /etc/resolv.conf
 
 #### Add your prefered DNS server there
 nameserver <IP OF HOST>
-   
-## Dark Mode for pihole
-
-* Console into docker container
-   
-   `docker exec -it pihole /bin/bash`
-
-1. `cd /var/www/html/admin/style/vendor/`
-2. `sudo git clone https://github.com/jacobbates/pi-hole-midnight.git`
-3. `sudo rm -f skin-blue.min.css`
-4. `sudo cp pi-hole-midnight/skin-blue.min.css .`
-5. `sudo rm -rf pi-hole-midnight`
