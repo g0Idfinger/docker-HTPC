@@ -965,7 +965,36 @@ services:
       - TARGET_DOMAIN=$DOMAINNAME
       - DOMAIN1=$DOMAINNAME
       - DOMAIN1_ZONE_ID=$CLOUDFLARE_ZONEID # Copy from Cloudflare Overview page
-      - DOMAIN1_PROXIED=TRUE     
+      - DOMAIN1_PROXIED=TRUE
+
+###### WordPress
+
+  # VSCode - VSCode Editing
+  vscode:
+    image: codercom/code-server:latest
+    container_name: vscode
+    restart: unless-stopped
+    networks:
+      - t2_proxy
+    volumes:
+      - $DOCKERDIR:/home/coder/docker
+      - $DOCKERDIR/vscode:/home/coder
+    environment:
+      PASSWORD: $VSCODE_PASSWORD
+      # Run as root first time (user: 0), then stop container, then change permissions to user:docker and 775. Disable run as root below.
+      user: $PUID:$PGID
+      # user: "0"
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.vscode-rtr.entrypoints=https"
+      - "traefik.http.routers.vscode-rtr.rule=Host(`code.$DOMAINNAME`)"
+      ## Middlewares
+      - "traefik.http.routers.vscode-rtr.middlewares=chain-authelia@file"
+      ## HTTP Services
+      - "traefik.http.routers.vscode-rtr.service=vscode-svc"
+      - "traefik.http.services.vscode-svc.loadbalancer.server.port=8080"
+
   ########Pi Hole##############
 
   pihole: 
