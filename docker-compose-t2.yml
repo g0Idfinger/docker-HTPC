@@ -279,7 +279,7 @@ services:
  # Portainer - WebUI for Containers
   portainer:
     container_name: portainer
-    image: portainer/portainer:latest
+    image: portainer/portainer-ce:latest
     restart: unless-stopped
     #command: -H unix:///var/run/docker.sock # # Use Docker Socket Proxy instead for improved security
     command: -H tcp://socket-proxy:2375 # appears to not work. Workaround was to create a new socket-proxy:2375 endpoint on portainer settings
@@ -392,33 +392,6 @@ services:
       ## HTTP Services
       - "traefik.http.routers.phpmyadmin-rtr.service=phpmyadmin-svc"
       - "traefik.http.services.phpmyadmin-svc.loadbalancer.server.port=80"
-
-  # Grafana - Graphical data visualization for InfluxDB data
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    restart: unless-stopped
-    networks:
-      - t2_proxy
-    security_opt:
-      - no-new-privileges:true
-    # ports:
-    #   - "$GRAFANA_PORT:3000"
-    user: "0"
-    volumes:
-      - $DOCKERDIR/grafana:/var/lib/grafana
-    environment:
-      GF_INSTALL_PLUGINS: "grafana-clock-panel,grafana-simple-json-datasource,grafana-worldmap-panel,grafana-piechart-panel"
-    labels:
-      - "traefik.enable=true"
-      ## HTTP Routers
-      - "traefik.http.routers.grafana-rtr.entrypoints=https"
-      - "traefik.http.routers.grafana-rtr.rule=HostHeader(`grafana.$DOMAINNAME`)"
-      ## Middlewares
-      - "traefik.http.routers.grafana-rtr.middlewares=chain-authelia@file"
-      ## HTTP Services
-      - "traefik.http.routers.grafana-rtr.service=grafana-svc"
-      - "traefik.http.services.grafana-svc.loadbalancer.server.port=3000"
 
   ############################# DOWNLOADERS
 # qBittorrent - Torrent downloader
@@ -541,7 +514,7 @@ services:
   # Set url_base in sonarr settings if using PathPrefix
   sonarr:
     # image: aront/sonarr  #for mp4_automator support
-    image: linuxserver/sonarr:preview
+    image: linuxserver/sonarr:latest
     container_name: sonarr
     restart: unless-stopped
     networks:
@@ -642,7 +615,7 @@ services:
     #  - "$TAUTULLI_PORT:8181"
     volumes:
       - $DOCKERDIR/tautulli/config:/config
-      - $DOCKERDIR/tautulli/logs:/logs:ro
+      - $DOCKERDIR/plexms/Library/Application Support/Plex Media Server/Logs:/logs:ro
     environment:
       PUID: $PUID
       PGID: $PGID
@@ -657,36 +630,6 @@ services:
       ## HTTP Services
       - "traefik.http.routers.tautulli-rtr.service=tautulli-svc"
       - "traefik.http.services.tautulli-svc.loadbalancer.server.port=8181"
-
-  # PhotoShow - Image Gallery
-  photoshow:
-    image: linuxserver/photoshow:latest
-    container_name: photoshow
-    restart: unless-stopped
-    networks:
-      - t2_proxy
-    security_opt:
-      - no-new-privileges:true
-    # ports:
-    #  - "$PHOTOSHOW_PORT:80"
-    volumes:
-      - $DOCKERDIR/photoshow/config:/config
-      - $DOCKERDIR/photoshow/thumbs:/Thumbs
-      - /media/ds918/media/photos:/Pictures:ro
-    environment:
-      PUID: $PUID
-      PGID: $PGID
-      TZ: $TZ
-    labels:
-      - "traefik.enable=true"
-      ## HTTP Routers
-      - "traefik.http.routers.photoshow-rtr.entrypoints=https"
-      - "traefik.http.routers.photoshow-rtr.rule=HostHeader(`photoshow.$DOMAINNAME`)"
-      ## Middlewares
-      - "traefik.http.routers.photoshow-rtr.middlewares=chain-authelia@file"
-      ## HTTP Services
-      - "traefik.http.routers.photoshow-rtr.service=photoshow-svc"
-      - "traefik.http.services.photoshow-svc.loadbalancer.server.port=80"
 
   ############################# MEDIA FILE MANAGEMENT
 #Photo album
@@ -721,43 +664,6 @@ services:
   
   ############################# UTILITIES
 
-  # Firefox - Web Broswer
-  # VNC password not working - check
-  firefox:
-    image: jlesage/firefox:latest
-    container_name: firefox
-    restart: unless-stopped
-    networks:
-      - t2_proxy
-    security_opt:
-      - no-new-privileges:true
-    # ports:
-    #   - "$FIREFOX_PORT:5800"
-    volumes:
-      - $DOCKERDIR/firefox:/config
-      - $USERDIR/Downloads/completed:/config/downloads
-      - /dev/shm:/dev/shm
-      - $DOCKERDIR/shared:/shared
-    environment:
-      USER_ID: $PUID
-      GROUP_ID: $PGID
-      TZ: $TZ
-      UMASK: 002
-      KEEP_APP_RUNNING: 1
-      CLEAN_TMP_DIR: 1
-      DISPLAY_WIDTH: 1600
-      DISPLAY_HEIGHT: 960
-     # VNC_PASSWD: $FIREFOX_VNC_PASSWD
-    labels:
-      - "traefik.enable=true"
-      ## HTTP Routers
-      - "traefik.http.routers.firefox-rtr.entrypoints=https"
-      - "traefik.http.routers.firefox-rtr.rule=HostHeader(`firefox.$DOMAINNAME`)"
-      ## Middlewares
-      - "traefik.http.routers.firefox-rtr.middlewares=chain-authelia@file"
-      ## HTTP Services
-      - "traefik.http.routers.firefox-rtr.service=firefox-svc"
-      - "traefik.http.services.firefox-svc.loadbalancer.server.port=5800"
 
   # Glances - System Information
   glances:
@@ -994,6 +900,61 @@ services:
       ## HTTP Services
       - "traefik.http.routers.vscode-rtr.service=vscode-svc"
       - "traefik.http.services.vscode-svc.loadbalancer.server.port=8080"
+
+  # PHP - Hypertext Preprocessor
+  php7:
+    container_name: php7
+    image: php:7.4-fpm-custom
+    build:
+      context: $DOCKERDIR/custom/
+      dockerfile: Dockerfile-php7
+    restart: unless-stopped
+    user: $PUID:$PGID # allows upgrading WP and plugins
+    networks:
+      - t2_proxy
+    volumes:
+      - $DOCKERDIR/sites/wordpress/html:/var/www/html
+      - $DOCKERDIR/php/php7:/usr/local/etc/php
+
+  # Nginx - Web Server
+  nginx:
+    container_name: nginx
+    image: nginx:1.18
+    restart: unless-stopped
+    depends_on:
+      - php7
+    networks:
+      - t2_proxy
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /var/log/nginx:/var/log/nginx
+      - $DOCKERDIR/nginx:/etc/nginx
+      #- $DOCKERDIR/shared/.htpassd:/shared/.htpasswd
+      - $DOCKERDIR/sites/wordpress/html:/var/www/html
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers WP (WordPress) Auth
+      - "traefik.http.routers.nginx-wp-auth-rtr.entrypoints=https"
+      - "traefik.http.routers.nginx-wp-auth-rtr.rule=Host(`test.$DOMAINNAME`) && Path(`/wp-login.php`)"
+      - "traefik.http.routers.nginx-wp-auth-rtr.priority=100"
+      ## HTTP Routers WP (WordPress) Bypass
+      - "traefik.http.routers.nginx-wp-rtr.entrypoints=https"
+      - "traefik.http.routers.nginx-wp-rtr.rule=Host(`$DOMAINNAME`) || Host(`test.$DOMAINNAME`)"
+      - "traefik.http.routers.nginx-wp-rtr.priority=99"
+      # Redirect wp non-www to www middleware
+      - "traefik.http.middlewares.wp-redirect.redirectregex.regex=^https?://$DOMAINNAME/(.*)"
+      - "traefik.http.middlewares.wp-redirect.redirectregex.replacement=https://test.$DOMAINNAME/$${1}"
+      - "traefik.http.middlewares.wp-redirect.redirectregex.permanent=true"
+      ## Middlewares
+      - "traefik.http.routers.nginx-wp-rtr.middlewares=wp-redirect,chain-authelia@file"
+      - "traefik.http.routers.nginx-wp-auth-rtr.middlewares=wp-redirect,chain-authelia@file"
+      ## HTTP Services
+      - "traefik.http.routers.nginx-shb-rtr.service=nginx-svc"
+      - "traefik.http.routers.nginx-shb-auth-rtr.service=nginx-svc"
+      - "traefik.http.routers.nginx-khub-rtr.service=nginx-svc"
+      - "traefik.http.routers.nginx-dash-rtr.service=nginx-svc"
+      - "traefik.http.services.nginx-svc.loadbalancer.server.port=80"
 
   ########Pi Hole##############
 
