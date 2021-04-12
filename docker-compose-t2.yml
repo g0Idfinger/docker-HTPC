@@ -473,7 +473,7 @@ services:
   # Set url_base in radarr settings if using PathPrefix
   radarr:
     # image: aront/radarr #for mp4_automator support
-    image: linuxserver/radarr:nightly
+    image: linuxserver/radarr:latest
     container_name: radarr
     restart: unless-stopped
     networks:
