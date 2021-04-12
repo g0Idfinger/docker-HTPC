@@ -384,9 +384,9 @@ services:
       - "6881:6881"
       - "6881:6881/udp"
     volumes:
-      - $USERDIR/docker/qbittorrent:/config
+      - $DOCKERDIR/qbittorrent:/config
       - /mnt/Media/Downloads:/downloads
-#      - $USERDIR/docker/shared:/shared
+#      - $DOCKERDIR/shared:/shared
     environment:
       PUID: $PUID
       PGID: $PGID
@@ -424,10 +424,10 @@ services:
     #ports:
      # - "$JACKETT_PORT:9117"
     volumes:
-      - $USERDIR/docker/jackett:/config
+      - $DOCKERDIR/jackett:/config
       - /mnt/Media/Downloads/completed:/downloads
       - "/etc/localtime:/etc/localtime:ro"
-      - $USERDIR/docker/shared:/shared
+      - $DOCKERDIR/shared:/shared
     environment:
       PUID: $PUID
       PGID: $PGID
@@ -461,11 +461,11 @@ services:
     #ports:
      # - "$RADARR_PORT:7878"
     volumes:
-      - $USERDIR/docker/radarr:/config
+      - $DOCKERDIR/radarr:/config
       - /mnt/Media/Downloads:/downloads
       - /mnt/Media/Movies:/movies
       - "/etc/localtime:/etc/localtime:ro"
-      - $USERDIR/docker/shared:/shared
+      - $DOCKERDIR/shared:/shared
     environment:
       PUID: $PUID
       PGID: $PGID
@@ -502,11 +502,11 @@ services:
     #ports:
     #  - "$SONARR_PORT:8989"
     volumes:
-      - $USERDIR/docker/sonarr:/config
+      - $DOCKERDIR/sonarr:/config
       - /mnt/Media/Downloads:/downloads
       - /mnt/Media/Shows:/tv
       - "/etc/localtime:/etc/localtime:ro"
-      - $USERDIR/docker/shared:/shared
+      - $DOCKERDIR/shared:/shared
     environment:
       PUID: $PUID
       PGID: $PGID
@@ -554,9 +554,9 @@ services:
       - "32414:32414/udp"
      # - "$PLEX_WEB_TOOLS_PORT:33400"
     volumes:
-      - $USERDIR/docker/plexms:/config
+      - $DOCKERDIR/plexms:/config
       - /mnt/Media:/media
-      - $USERDIR/docker/shared:/shared
+      - $DOCKERDIR/shared:/shared
       - /dev/shm:/data/transcode # Offload transcoding to RAM if you have enough RAM
 #      - $USERDIR/Downloads/plex_tmp:/transcode
     environment:
@@ -620,7 +620,7 @@ services:
       - PGID=$PGID
       - TZ=$TZ
     volumes:
-      - $USERDIR/docker/piwigo/config:/config
+      - $DOCKERDIR/piwigo/config:/config
       - /mnt/Media/Photos:/config/www/gallery/upload
     networks:
       - t2_proxy
@@ -965,12 +965,12 @@ services:
       - '9443:443' 
     restart: always
     volumes:
-      - $USERDIR/docker/pihole/pihole:/etc/pihole
-      - $USERDIR/docker/pihole/pihole.log:/var/log/pihole.log
-      - $USERDIR/docker/pihole/dnsmasq.d:/etc/dnsmasq.d
+      - $DOCKERDIR/pihole/pihole:/etc/pihole
+      - $DOCKERDIR/pihole/pihole.log:/var/log/pihole.log
+      - $DOCKERDIR/pihole/dnsmasq.d:/etc/dnsmasq.d
 #      ## Add dark skin to pihole: https://github.com/thomasbnt/Night_PiHole
-#      - $USERDIR/docker/pihole/theme/skin-blue.min.css:/var/www/html/admin/style/vendor/skin-blue.min.css
-#      - $USERDIR/docker/pihole/theme/AdminLTE.min.css:/var/www/html/admin/style/vendor/AdminLTE.min.css
+#      - $DOCKERDIR/pihole/theme/skin-blue.min.css:/var/www/html/admin/style/vendor/skin-blue.min.css
+#      - $DOCKERDIR/pihole/theme/AdminLTE.min.css:/var/www/html/admin/style/vendor/AdminLTE.min.css
     cap_add:
       - NET_ADMIN
     environment:
