@@ -69,8 +69,8 @@ services:
   # touch $DOCKERDIR/traefik2/traefik.log
   traefik:
     container_name: traefik
-    image: traefik:picodon # the chevrotin tag refers to v2.2.x
-    restart: unless-stopped
+    image: traefik:livarot
+    restart: always
     command: # CLI arguments
       - --global.checkNewVersion=true
       - --global.sendAnonymousUsage=true
@@ -82,8 +82,9 @@ services:
       - --api=true
       # - --api.insecure=true
       # - --serversTransport.insecureSkipVerify=true
+      - --api.dashboard=true
       - --log=true
-      - --log.level=INFO # (Default: error) DEBUG, INFO, WARN, ERROR, FATAL, PANIC
+      - --log.level=WARN # (Default: error) DEBUG, INFO, WARN, ERROR, FATAL, PANIC
       - --accessLog=true
       - --accessLog.filePath=/traefik.log
       - --accessLog.bufferingSize=100 # Configuring a buffer of 100 lines
@@ -91,9 +92,10 @@ services:
       - --providers.docker=true
       # - --providers.docker.endpoint=unix:///var/run/docker.sock # Use Docker Socket Proxy instead for improved security
       - --providers.docker.endpoint=tcp://socket-proxy:2375
-      # - --providers.docker.defaultrule=HostHeader(`{{ index .Labels "com.docker.compose.service" }}.$DOMAINNAME`)
+      # - --providers.docker.defaultrule=Host(`{{ index .Labels "com.docker.compose.service" }}.$DOMAINNAME`)
       - --providers.docker.exposedByDefault=false
       # - --entrypoints.https.http.middlewares=chain-authelia@file
+      - --entrypoints.https.http.tls.options=tls-opts@file
       # Add dns-cloudflare as default certresolver for all services. Also enables TLS and no need to specify on individual services
       - --entrypoints.https.http.tls.certresolver=dns-cloudflare
       - --entrypoints.https.http.tls.domains[0].main=$DOMAINNAME
@@ -117,8 +119,6 @@ services:
       # networks:
       #   - t2_proxy
       socket_proxy:
-    depends_on:
-      - socket-proxy
     security_opt:
       - no-new-privileges:true
     ports:
@@ -156,38 +156,16 @@ services:
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
       # HTTP Routers
       - "traefik.http.routers.traefik-rtr.entrypoints=https"
-      - "traefik.http.routers.traefik-rtr.rule=HostHeader(`traefik.$DOMAINNAME`)"
+      - "traefik.http.routers.traefik-rtr.rule=Host(`traefik.$DOMAINNAME`)"
       ## Services - API
       - "traefik.http.routers.traefik-rtr.service=api@internal"
       ## Middlewares
       - "traefik.http.routers.traefik-rtr.middlewares=chain-authelia@file"
 
-  # Traefik - Custom Error Pages
-  traefik-error-pages:
-    container_name: traefik-error-pages
-    image: guillaumebriday/traefik-custom-error-pages
-    restart: unless-stopped
-    networks:
-      - t2_proxy
-    labels:
-      - "traefik.enable=true"
-      # HTTP Routers
-      - "traefik.http.routers.traefik-error-pages-rtr.entrypoints=https"
-      - "traefik.http.routers.traefik-error-pages-rtr.rule=HostRegexp(`{host:.+}`)"
-      - "traefik.http.routers.traefik-error-pages-rtr.priority=1"
-      # Middlewares
-      - "traefik.http.routers.traefik-error-pages-rtr.middlewares=traefik-error-pages"
-      - "traefik.http.middlewares.traefik-error-pages.errors.service=traefik-error-pages-svc"
-      - "traefik.http.middlewares.traefik-error-pages.errors.status=401,403,404,429,500,502,503"
-      - "traefik.http.middlewares.traefik-error-pages.errors.query=/{status}.html"
-      # HTTP Services
-      - "traefik.http.routers.traefik-error-pages-rtr.service=traefik-error-pages-svc"
-      - "traefik.http.services.traefik-error-pages-svc.loadbalancer.server.port=80"
-
   # Docker Socket Proxy - Security Enchanced Proxy for Docker Socket
   socket-proxy:
     container_name: socket-proxy
-    image: fluencelabs/docker-socket-proxy
+    image: tecnativa/docker-socket-proxy
     restart: always
     networks:
       # t2_proxy:
@@ -248,6 +226,7 @@ services:
     restart: always
     networks:
       - t2_proxy
+      - default
     # ports:
     #   - "9091:9091"
     volumes:
@@ -269,7 +248,7 @@ services:
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.authelia-rtr.entrypoints=https"
-      - "traefik.http.routers.authelia-rtr.rule=HostHeader(`authelia.$DOMAINNAME`)"
+      - "traefik.http.routers.authelia-rtr.rule=Host(`authelia.$DOMAINNAME`)"
       ## Middlewares
       - "traefik.http.routers.authelia-rtr.middlewares=chain-authelia@file"
       ## HTTP Services
@@ -300,7 +279,7 @@ services:
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.portainer-rtr.entrypoints=https"
-      - "traefik.http.routers.portainer-rtr.rule=HostHeader(`portainer.$DOMAINNAME`)"
+      - "traefik.http.routers.portainer-rtr.rule=Host(`portainer.$DOMAINNAME`)"
       ## Middlewares
       - "traefik.http.routers.portainer-rtr.middlewares=chain-authelia@file" # Authelia
       ## HTTP Services
@@ -329,7 +308,7 @@ services:
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.heimdall-rtr.entrypoints=https"
-      - "traefik.http.routers.heimdall-rtr.rule=HostHeader(`heimdall.$DOMAINNAME`)"
+      - "traefik.http.routers.heimdall-rtr.rule=Host(`heimdall.$DOMAINNAME`)"
       ## Middlewares
       - "traefik.http.routers.heimdall-rtr.middlewares=chain-authelia@file"
       ## HTTP Services
@@ -359,8 +338,6 @@ services:
     secrets:
       - mysql_root_password
   
-  # Influxdb moved to NAS
-
   # phpMyAdmin - Database management
   # Create a new user with admin privileges. Cannot login as MySQL root for some reason.
   phpmyadmin:
@@ -369,6 +346,7 @@ services:
     restart: unless-stopped
     networks:
       - t2_proxy
+      - default
     security_opt:
       - no-new-privileges:true
     # ports:
@@ -386,7 +364,7 @@ services:
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.phpmyadmin-rtr.entrypoints=https"
-      - "traefik.http.routers.phpmyadmin-rtr.rule=HostHeader(`pma.$DOMAINNAME`)"
+      - "traefik.http.routers.phpmyadmin-rtr.rule=Host(`pma.$DOMAINNAME`)"
       ## Middlewares
       - "traefik.http.routers.phpmyadmin-rtr.middlewares=chain-authelia@file"
       ## HTTP Services
@@ -443,8 +421,8 @@ services:
       - t2_proxy
     security_opt:
       - no-new-privileges:true
-    ports:
-      - "$JACKETT_PORT:9117"
+    #ports:
+     # - "$JACKETT_PORT:9117"
     volumes:
       - $USERDIR/docker/jackett:/config
       - /mnt/Media/Downloads/completed:/downloads
@@ -458,7 +436,7 @@ services:
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.jackett-rtr.entrypoints=https"
-      - "traefik.http.routers.jackett-rtr.rule=HostHeader(`jackett.$DOMAINNAME`)"
+      - "traefik.http.routers.jackett-rtr.rule=Host(`jackett.$DOMAINNAME`)"
       ## Middlewares
       - "traefik.http.routers.jackett-rtr.middlewares=chain-authelia@file"
       ## HTTP Services
@@ -480,8 +458,8 @@ services:
       - t2_proxy
     security_opt:
       - no-new-privileges:true
-    ports:
-      - "$RADARR_PORT:7878"
+    #ports:
+     # - "$RADARR_PORT:7878"
     volumes:
       - $USERDIR/docker/radarr:/config
       - /mnt/Media/Downloads:/downloads
@@ -496,11 +474,11 @@ services:
       - "traefik.enable=true"
       ## HTTP Routers Auth Bypass
       - "traefik.http.routers.radarr-rtr-bypass.entrypoints=https"
-      - "traefik.http.routers.radarr-rtr-bypass.rule=Headers(`X-Api-Key`, `$RADARR_API_KEY`) || Query(`apikey`, `$RADARR_API_KEY`)"
+      - "traefik.http.routers.radarr-rtr-bypass.rule=Host(`movies.$DOMAINNAME`) && (Headers(`X-Api-Key`, `$RADARR_API_KEY`) || Query(`apikey`, `$RADARR_API_KEY`))"
       - "traefik.http.routers.radarr-rtr-bypass.priority=100"
       ## HTTP Routers Auth
       - "traefik.http.routers.radarr-rtr.entrypoints=https"
-      - "traefik.http.routers.radarr-rtr.rule=HostHeader(`movies.$DOMAINNAME`)"
+      - "traefik.http.routers.radarr-rtr.rule=Host(`movies.$DOMAINNAME`)"
       - "traefik.http.routers.radarr-rtr.priority=99"
       ## Middlewares
       - "traefik.http.routers.radarr-rtr-bypass.middlewares=chain-no-auth@file"
@@ -521,8 +499,8 @@ services:
       - t2_proxy
     security_opt:
       - no-new-privileges:true
-    ports:
-      - "$SONARR_PORT:8989"
+    #ports:
+    #  - "$SONARR_PORT:8989"
     volumes:
       - $USERDIR/docker/sonarr:/config
       - /mnt/Media/Downloads:/downloads
@@ -537,11 +515,11 @@ services:
       - "traefik.enable=true"
       ## HTTP Routers Auth Bypass
       - "traefik.http.routers.sonarr-rtr-bypass.entrypoints=https"
-      - "traefik.http.routers.sonarr-rtr-bypass.rule=Headers(`X-Api-Key`, `$SONARR_API_KEY`) || Query(`apikey`, `$SONARR_API_KEY`)"
+      - "traefik.http.routers.sonarr-rtr-bypass.rule=Host(`tv.$DOMAINNAME`) && (Headers(`X-Api-Key`, `$SONARR_API_KEY`) || Query(`apikey`, `$SONARR_API_KEY`))"
       - "traefik.http.routers.sonarr-rtr-bypass.priority=100"
       ## HTTP Routers Auth
       - "traefik.http.routers.sonarr-rtr.entrypoints=https"
-      - "traefik.http.routers.sonarr-rtr.rule=HostHeader(`tv.$DOMAINNAME`)"
+      - "traefik.http.routers.sonarr-rtr.rule=Host(`tv.$DOMAINNAME`)"
       - "traefik.http.routers.sonarr-rtr.priority=99"
       ## Middlewares
       - "traefik.http.routers.sonarr-rtr-bypass.middlewares=chain-no-auth@file"
@@ -555,7 +533,7 @@ services:
 
   # Plex - Media Server
   plexms:
-    image: plexinc/pms-docker:public
+    image: plexinc/pms-docker:plexpass
     container_name: plexms
     restart: unless-stopped
     networks:
@@ -574,12 +552,12 @@ services:
       - "32412:32412/udp"
       - "32413:32413/udp"
       - "32414:32414/udp"
-      - "$PLEX_WEB_TOOLS_PORT:33400"
+     # - "$PLEX_WEB_TOOLS_PORT:33400"
     volumes:
       - $USERDIR/docker/plexms:/config
       - /mnt/Media:/media
       - $USERDIR/docker/shared:/shared
-      - /dev/shm:/transcode # Offload transcoding to RAM if you have enough RAM
+      - /dev/shm:/data/transcode # Offload transcoding to RAM if you have enough RAM
 #      - $USERDIR/Downloads/plex_tmp:/transcode
     environment:
       TZ: $TZ
@@ -594,7 +572,7 @@ services:
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.plexms-rtr.entrypoints=https"
-      - "traefik.http.routers.plexms-rtr.rule=HostHeader(`plex.$DOMAINNAME`)"
+      - "traefik.http.routers.plexms-rtr.rule=Host(`plex.$DOMAINNAME`)"
       ## Middlewares
       - "traefik.http.routers.plexms-rtr.middlewares=chain-no-auth@file"
       ## HTTP Services
@@ -624,7 +602,7 @@ services:
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.tautulli-rtr.entrypoints=https"
-      - "traefik.http.routers.tautulli-rtr.rule=HostHeader(`tautulli.$DOMAINNAME`)"
+      - "traefik.http.routers.tautulli-rtr.rule=Host(`tautulli.$DOMAINNAME`)"
       ## Middlewares
       - "traefik.http.routers.tautulli-rtr.middlewares=chain-authelia@file"
       ## HTTP Services
@@ -648,8 +626,8 @@ services:
       - t2_proxy
     security_opt:
       - no-new-privileges:true
-    ports:
-      - '$PIWIGO_PORT:80'
+    #ports:
+     # - '$PIWIGO_PORT:80'
     labels:
       - "traefik.enable=true"
      ## HTTP Routers
@@ -694,7 +672,7 @@ services:
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.glances-rtr.entrypoints=https"
-      - "traefik.http.routers.glances-rtr.rule=HostHeader(`glances.$DOMAINNAME`)"
+      - "traefik.http.routers.glances-rtr.rule=Host(`glances.$DOMAINNAME`)"
       ## Middlewares
       - "traefik.http.routers.glances-rtr.middlewares=chain-authelia@file"
       ## HTTP Services
@@ -727,7 +705,7 @@ services:
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.dozzle-rtr.entrypoints=https"
-      - "traefik.http.routers.dozzle-rtr.rule=HostHeader(`dozzle.$DOMAINNAME`)"
+      - "traefik.http.routers.dozzle-rtr.rule=Host(`dozzle.$DOMAINNAME`)"
       ## Middlewares
       - "traefik.http.routers.dozzle-rtr.middlewares=chain-authelia@file"
       ## HTTP Services
@@ -741,6 +719,7 @@ services:
     restart: unless-stopped
     networks:
       - t2_proxy
+      - default
     security_opt:
       - no-new-privileges:true
     # ports:
@@ -760,7 +739,7 @@ services:
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.guacamole-rtr.entrypoints=https"
-      - "traefik.http.routers.guacamole-rtr.rule=HostHeader(`guac.$DOMAINNAME`)"
+      - "traefik.http.routers.guacamole-rtr.rule=Host(`guac.$DOMAINNAME`)"
       ## Middlewares
       - "traefik.http.routers.guacamole-rtr.middlewares=chain-authelia@file,add-guacamole"
       - "traefik.http.middlewares.add-guacamole.addPrefix.prefix=/guacamole"
@@ -859,20 +838,26 @@ services:
   cf-companion:
     container_name: cf-companion
     image: tiredofit/traefik-cloudflare-companion:latest
-    restart: always
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    networks:
+      - socket_proxy
+    #volumes:
+     # - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       - TIMEZONE=$TZ
       - TRAEFIK_VERSION=2
       - CF_EMAIL=$CLOUDFLARE_EMAIL # Same as traefik
-      # - CF_TOKEN=$CLOUDFLARE_API_TOKEN # Scoped api token not working. Error 10000.
+      #- CF_TOKEN=$CLOUDFLARE_API_TOKEN # Scoped api token not working. Error 10000.
       - CF_TOKEN=$CLOUDFLARE_API_KEY # Same as traefik
       - TARGET_DOMAIN=$DOMAINNAME
       - DOMAIN1=$DOMAINNAME
       - DOMAIN1_ZONE_ID=$CLOUDFLARE_ZONEID # Copy from Cloudflare Overview page
       - DOMAIN1_PROXIED=TRUE
-
+      - DOCKER_Host=tcp://socket-proxy:2375
+   # secrets: # not working
+    #  - cloudflare_api_token
 ###### WordPress
 
   # VSCode - VSCode Editing
@@ -890,6 +875,7 @@ services:
       # Run as root first time (user: 0), then stop container, then change permissions to user:docker and 775. Disable run as root below.
       user: $PUID:$PGID
       # user: "0"
+      DOCKER_HOST: tcp://socket-proxy:2375
     labels:
       - "traefik.enable=true"
       ## HTTP Routers
