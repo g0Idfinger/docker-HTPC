@@ -64,9 +64,9 @@ services:
 
   # Traefik 2 - Reverse Proxy
   # Touch (create empty files) traefik.log and acme/acme.json. Set acme.json permissions to 600.
-  # touch $DOCKERDIR/traefik2/acme/acme.json
-  # chmod 600 $DOCKERDIR/traefik2/acme/acme.json
-  # touch $DOCKERDIR/traefik2/traefik.log
+  # touch $DOCKERDIR/appdata/traefik2/acme/acme.json
+  # chmod 600 $DOCKERDIR/appdata/traefik2/acme/acme.json
+  # touch $DOCKERDIR/appdata/traefik2/traefik.log
   traefik:
     container_name: traefik
     image: traefik:livarot
@@ -136,11 +136,11 @@ services:
     #        protocol: tcp
     #        mode: host
     volumes:
-      - $DOCKERDIR/traefik2/rules:/rules # file provider directory
+      - $DOCKERDIR/appdata/traefik2/rules:/rules # file provider directory
       # - /var/run/docker.sock:/var/run/docker.sock:ro # Use Docker Socket Proxy instead for improved security
-      - $DOCKERDIR/traefik2/acme/acme.json:/acme.json # cert location - you must touch this file and change permissions to 600
-      - $DOCKERDIR/traefik2/traefik.log:/traefik.log # for fail2ban - make sure to touch file before starting container
-      - $DOCKERDIR/shared:/shared
+      - $DOCKERDIR/appdata/traefik2/acme/acme.json:/acme.json # cert location - you must touch this file and change permissions to 600
+      - $DOCKERDIR/appdata/traefik2/traefik.log:/traefik.log # for fail2ban - make sure to touch file before starting container
+      - $DOCKERDIR/appdata/shared:/shared
     environment:
       - CF_API_EMAIL_FILE=/run/secrets/cloudflare_email
       - CF_API_KEY_FILE=/run/secrets/cloudflare_api_key
@@ -230,7 +230,7 @@ services:
     # ports:
     #   - "9091:9091"
     volumes:
-      - $DOCKERDIR/authelia:/config
+      - $DOCKERDIR/appdata/authelia:/config
     environment:
       - TZ=$TZ
       - AUTHELIA_JWT_SECRET_FILE=/run/secrets/authelia_jwt_secret
@@ -272,7 +272,7 @@ services:
       - no-new-privileges:true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro # # Use Docker Socket Proxy instead for improved security
-      - $DOCKERDIR/portainer/data:/data # Change to local directory if you want to save/transfer config locally
+      - $DOCKERDIR/appdata/portainer/data:/data # Change to local directory if you want to save/transfer config locally
     environment:
       - TZ=$TZ
     labels:
@@ -299,7 +299,7 @@ services:
     #    ports:
     #      - "$HEIMDALL_PORT:80"
     volumes:
-      - $DOCKERDIR/heimdall:/config
+      - $DOCKERDIR/appdata/heimdall:/config
     environment:
       - PUID=$PUID
       - PGID=$PGID
@@ -328,7 +328,7 @@ services:
     security_opt:
       - no-new-privileges:true
     volumes:
-      - $DOCKERDIR/mariadb/:/config
+      - $DOCKERDIR/appdata/mariadb/:/config
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     environment:
@@ -384,9 +384,9 @@ services:
       - "6881:6881"
       - "6881:6881/udp"
     volumes:
-      - $DOCKERDIR/qbittorrent:/config
+      - $DOCKERDIR/appdata/qbittorrent:/config
       - /mnt/Media/Downloads:/downloads
-#      - $DOCKERDIR/shared:/shared
+#      - $DOCKERDIR/appdata/shared:/shared
     environment:
       PUID: $PUID
       PGID: $PGID
@@ -424,10 +424,10 @@ services:
     #ports:
      # - "$JACKETT_PORT:9117"
     volumes:
-      - $DOCKERDIR/jackett:/config
+      - $DOCKERDIR/appdata/jackett:/config
       - /mnt/Media/Downloads/completed:/downloads
       - "/etc/localtime:/etc/localtime:ro"
-      - $DOCKERDIR/shared:/shared
+      - $DOCKERDIR/appdata/shared:/shared
     environment:
       PUID: $PUID
       PGID: $PGID
@@ -461,11 +461,11 @@ services:
     #ports:
      # - "$RADARR_PORT:7878"
     volumes:
-      - $DOCKERDIR/radarr:/config
+      - $DOCKERDIR/appdata/radarr:/config
       - /mnt/Media/Downloads:/downloads
       - /mnt/Media/Movies:/movies
       - "/etc/localtime:/etc/localtime:ro"
-      - $DOCKERDIR/shared:/shared
+      - $DOCKERDIR/appdata/shared:/shared
     environment:
       PUID: $PUID
       PGID: $PGID
@@ -502,11 +502,11 @@ services:
     #ports:
     #  - "$SONARR_PORT:8989"
     volumes:
-      - $DOCKERDIR/sonarr:/config
+      - $DOCKERDIR/appdata/sonarr:/config
       - /mnt/Media/Downloads:/downloads
       - /mnt/Media/Shows:/tv
       - "/etc/localtime:/etc/localtime:ro"
-      - $DOCKERDIR/shared:/shared
+      - $DOCKERDIR/appdata/shared:/shared
     environment:
       PUID: $PUID
       PGID: $PGID
@@ -554,9 +554,9 @@ services:
       - "32414:32414/udp"
      # - "$PLEX_WEB_TOOLS_PORT:33400"
     volumes:
-      - $DOCKERDIR/plexms:/config
+      - $DOCKERDIR/appdata/plexms:/config
       - /mnt/Media:/media
-      - $DOCKERDIR/shared:/shared
+      - $DOCKERDIR/appdata/shared:/shared
       - /dev/shm:/data/transcode # Offload transcoding to RAM if you have enough RAM
 #      - $USERDIR/Downloads/plex_tmp:/transcode
     environment:
@@ -592,8 +592,8 @@ services:
     # ports:
     #  - "$TAUTULLI_PORT:8181"
     volumes:
-      - $DOCKERDIR/tautulli/config:/config
-      - $DOCKERDIR/plexms/Library/Application Support/Plex Media Server/Logs:/logs:ro
+      - $DOCKERDIR/appdata/tautulli/config:/config
+      - $DOCKERDIR/appdata/plexms/Library/Application Support/Plex Media Server/Logs:/logs:ro
     environment:
       PUID: $PUID
       PGID: $PGID
@@ -620,7 +620,7 @@ services:
       - PGID=$PGID
       - TZ=$TZ
     volumes:
-      - $DOCKERDIR/piwigo/config:/config
+      - $DOCKERDIR/appdata/piwigo/config:/config
       - /mnt/Media/Photos:/config/www/gallery/upload
     networks:
       - t2_proxy
@@ -661,7 +661,7 @@ services:
     #   - "$GLANCES_PORT:61208"
     pid: host
     volumes:
-      - $DOCKERDIR/glances/glances.conf:/glances/conf/glances.conf # Use this if you want to add a glances.conf file
+      - $DOCKERDIR/appdata/glances/glances.conf:/glances/conf/glances.conf # Use this if you want to add a glances.conf file
       - /mnt/Media:/Media:ro    
   # - /var/run/docker.sock:/var/run/docker.sock:ro # Use Docker Socket Proxy instead for improved security
     environment:
@@ -795,7 +795,7 @@ services:
       - socket-proxy
     volumes:
       # - /var/run/docker.sock:/var/run/docker.sock # Use Docker Socket Proxy instead for improved security
-      - $DOCKERDIR/docker-gc/docker-gc-exclude:/etc/docker-gc-exclude
+      - $DOCKERDIR/appdata/docker-gc/docker-gc-exclude:/etc/docker-gc-exclude
     environment:
       CRON: 0 0 0 * * ? # Everyday at midnight. Previously 0 0 * * *
       FORCE_IMAGE_REMOVAL: 1
@@ -815,8 +815,8 @@ services:
       - no-new-privileges:true
     # command: --restart-containers container1,container2,container3
     volumes:
-      - $DOCKERDIR/traefik2/acme:/traefik:ro
-      - $DOCKERDIR/shared/certs:/output:rw
+      - $DOCKERDIR/appdata/traefik2/acme:/traefik:ro
+      - $DOCKERDIR/appdata/shared/certs:/output:rw
       # - /var/run/docker.sock:/var/run/docker.sock:ro # Only needed if restarting containers (use Docker Socket Proxy instead)
     environment:
       DOMAIN: $DOMAINNAME
@@ -868,8 +868,10 @@ services:
     networks:
       - t2_proxy
     volumes:
+      - $USERDIR/server:/home/coder/server
       - $DOCKERDIR:/home/coder/docker
-      - $DOCKERDIR/vscode:/home/coder
+      - $DOCKERDIR/appdata/vscode:/home/coder
+      - /mnt/Media:/home/coder/hdd1
     environment:
       PASSWORD: $VSCODE_PASSWORD
       # Run as root first time (user: 0), then stop container, then change permissions to user:docker and 775. Disable run as root below.
@@ -892,15 +894,15 @@ services:
     container_name: php7
     image: php:7.4-fpm-custom
     build:
-      context: $DOCKERDIR/custom/
+      context: $DOCKERDIR/appdata/custom/
       dockerfile: Dockerfile-php7
     restart: unless-stopped
     user: $PUID:$PGID # allows upgrading WP and plugins
     networks:
       - t2_proxy
     volumes:
-      - $DOCKERDIR/sites/wordpress/html:/var/www/html
-      - $DOCKERDIR/php/php7:/usr/local/etc/php
+      - $DOCKERDIR/appdata/sites/wordpress/html:/var/www/html
+      - $DOCKERDIR/appdata/php/php7:/usr/local/etc/php
 
   # Nginx - Web Server
   nginx:
@@ -915,9 +917,9 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
       - /var/log/nginx:/var/log/nginx
-      - $DOCKERDIR/nginx:/etc/nginx
-      #- $DOCKERDIR/shared/.htpassd:/shared/.htpasswd
-      - $DOCKERDIR/sites/wordpress/html:/var/www/html
+      - $DOCKERDIR/appdata/nginx:/etc/nginx
+      #- $DOCKERDIR/appdata/shared/.htpassd:/shared/.htpasswd
+      - $DOCKERDIR/appdata/sites/wordpress/html:/var/www/html
     labels:
       - "traefik.enable=true"
       ## HTTP Routers WP (WordPress) Auth
@@ -965,12 +967,12 @@ services:
       - '9443:443' 
     restart: always
     volumes:
-      - $DOCKERDIR/pihole/pihole:/etc/pihole
-      - $DOCKERDIR/pihole/pihole.log:/var/log/pihole.log
-      - $DOCKERDIR/pihole/dnsmasq.d:/etc/dnsmasq.d
+      - $DOCKERDIR/appdata/pihole/pihole:/etc/pihole
+      - $DOCKERDIR/appdata/pihole/pihole.log:/var/log/pihole.log
+      - $DOCKERDIR/appdata/pihole/dnsmasq.d:/etc/dnsmasq.d
 #      ## Add dark skin to pihole: https://github.com/thomasbnt/Night_PiHole
-#      - $DOCKERDIR/pihole/theme/skin-blue.min.css:/var/www/html/admin/style/vendor/skin-blue.min.css
-#      - $DOCKERDIR/pihole/theme/AdminLTE.min.css:/var/www/html/admin/style/vendor/AdminLTE.min.css
+#      - $DOCKERDIR/appdata/pihole/theme/skin-blue.min.css:/var/www/html/admin/style/vendor/skin-blue.min.css
+#      - $DOCKERDIR/appdata/pihole/theme/AdminLTE.min.css:/var/www/html/admin/style/vendor/AdminLTE.min.css
     cap_add:
       - NET_ADMIN
     environment:
