@@ -760,29 +760,6 @@ services:
 
   ############################# MAINTENANCE
 
-  # WatchTower - Automatic Docker Container Updates
-  watchtower:
-    image: containrrr/watchtower
-    container_name: watchtower
-    restart: unless-stopped
-    networks:
-      - default
-      - socket_proxy
-    depends_on:
-      - socket-proxy
-    environment:
-      TZ: $TZ
-      WATCHTOWER_CLEANUP: "true"
-      WATCHTOWER_REMOVE_VOLUMES: "true"
-      WATCHTOWER_INCLUDE_STOPPED: "true"
-      WATCHTOWER_NO_STARTUP_MESSAGE: "false"
-      WATCHTOWER_SCHEDULE: "0 30 12 * * *" # Everyday at 12:30
-      WATCHTOWER_NOTIFICATIONS: shoutrrr
-      #WATCHTOWER_NOTIFICATION_URL: "telegram://$TGRAM_BOT_TOKEN@telegram?channels=$TGRAM_CHAT_ID"
-      WATCHTOWER_NOTIFICATIONS_LEVEL: info
-      DOCKER_HOST: tcp://socket-proxy:2375
-      DOCKER_API_VERSION: "1.40"
-
   # Docker-GC - Automatic Docker Garbage Collection
   # Create docker-gc-exclude file
   dockergc:
@@ -816,7 +793,7 @@ services:
     # command: --restart-containers container1,container2,container3
     volumes:
       - $DOCKERDIR/appdata/traefik2/acme:/traefik:ro
-      - $DOCKERDIR/appdata/shared/certs:/output:rw
+      - $DOCKERDIR/shared/certs:/output:rw
       # - /var/run/docker.sock:/var/run/docker.sock:ro # Only needed if restarting containers (use Docker Socket Proxy instead)
     environment:
       DOMAIN: $DOMAINNAME
@@ -855,7 +832,7 @@ services:
       - DOMAIN1=$DOMAINNAME
       - DOMAIN1_ZONE_ID=$CLOUDFLARE_ZONEID # Copy from Cloudflare Overview page
       - DOMAIN1_PROXIED=TRUE
-      - DOCKER_Host=tcp://socket-proxy:2375
+      - DOCKER_HOST=tcp://socket-proxy:2375
    # secrets: # not working
     #  - cloudflare_api_token
 ###### WordPress
