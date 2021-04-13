@@ -116,8 +116,6 @@ services:
     networks:
       t2_proxy:
         ipv4_address: 192.168.90.254 # You can specify a static IP
-      # networks:
-      #   - t2_proxy
       socket_proxy:
     security_opt:
       - no-new-privileges:true
@@ -140,7 +138,6 @@ services:
       # - /var/run/docker.sock:/var/run/docker.sock:ro # Use Docker Socket Proxy instead for improved security
       - $DOCKERDIR/appdata/traefik2/acme/acme.json:/acme.json # cert location - you must touch this file and change permissions to 600
       - $DOCKERDIR/appdata/traefik2/traefik.log:/traefik.log # for fail2ban - make sure to touch file before starting container
-      - $DOCKERDIR/appdata/shared:/shared
     environment:
       - CF_API_EMAIL_FILE=/run/secrets/cloudflare_email
       - CF_API_KEY_FILE=/run/secrets/cloudflare_api_key
@@ -386,7 +383,7 @@ services:
     volumes:
       - $DOCKERDIR/appdata/qbittorrent:/config
       - /mnt/Media/Downloads:/downloads
-#      - $DOCKERDIR/appdata/shared:/shared
+#      - $DOCKERDIR/shared:/shared
     environment:
       PUID: $PUID
       PGID: $PGID
@@ -427,7 +424,7 @@ services:
       - $DOCKERDIR/appdata/jackett:/config
       - /mnt/Media/Downloads/completed:/downloads
       - "/etc/localtime:/etc/localtime:ro"
-      - $DOCKERDIR/appdata/shared:/shared
+      - $DOCKERDIR/shared:/shared
     environment:
       PUID: $PUID
       PGID: $PGID
@@ -465,7 +462,7 @@ services:
       - /mnt/Media/Downloads:/downloads
       - /mnt/Media/Movies:/movies
       - "/etc/localtime:/etc/localtime:ro"
-      - $DOCKERDIR/appdata/shared:/shared
+      - $DOCKERDIR/shared:/shared
     environment:
       PUID: $PUID
       PGID: $PGID
@@ -506,7 +503,7 @@ services:
       - /mnt/Media/Downloads:/downloads
       - /mnt/Media/Shows:/tv
       - "/etc/localtime:/etc/localtime:ro"
-      - $DOCKERDIR/appdata/shared:/shared
+      - $DOCKERDIR/shared:/shared
     environment:
       PUID: $PUID
       PGID: $PGID
@@ -556,7 +553,7 @@ services:
     volumes:
       - $DOCKERDIR/appdata/plexms:/config
       - /mnt/Media:/media
-      - $DOCKERDIR/appdata/shared:/shared
+      - $DOCKERDIR/shared:/shared
       - /dev/shm:/data/transcode # Offload transcoding to RAM if you have enough RAM
 #      - $USERDIR/Downloads/plex_tmp:/transcode
     environment:
@@ -653,8 +650,9 @@ services:
     networks:
       - t2_proxy
       - socket_proxy
-    depends_on:
-      - socket-proxy
+      - default
+    #depends_on:
+     # - socket-proxy
     security_opt:
       - no-new-privileges:true
     # ports:
@@ -662,7 +660,7 @@ services:
     pid: host
     volumes:
       - $DOCKERDIR/appdata/glances/glances.conf:/glances/conf/glances.conf # Use this if you want to add a glances.conf file
-      - /mnt/Media:/Media:ro    
+      - /mnt/Media:/RAID:ro    
   # - /var/run/docker.sock:/var/run/docker.sock:ro # Use Docker Socket Proxy instead for improved security
     environment:
       # GLANCES_OPT: "-C /glances/conf/glances.conf --quiet --export influxdb"
@@ -895,7 +893,7 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - /var/log/nginx:/var/log/nginx
       - $DOCKERDIR/appdata/nginx:/etc/nginx
-      #- $DOCKERDIR/appdata/shared/.htpassd:/shared/.htpasswd
+      #- $DOCKERDIR/shared/.htpassd:/shared/.htpasswd
       - $DOCKERDIR/appdata/sites/wordpress/html:/var/www/html
     labels:
       - "traefik.enable=true"
