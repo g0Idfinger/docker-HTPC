@@ -925,6 +925,7 @@ services:
     container_name: pihole
     domainname: radloff.local 
     hostname: pihole
+#    image: pihole/pihole:dev
     image: pihole/pihole:latest
     # network_mode: host
     depends_on:
@@ -938,8 +939,8 @@ services:
  #     - '67:67/udp'
       - '$SERVER_IP:53:53/tcp'
       - '$SERVER_IP:53:53/udp' 
-      - '9080:80'
-      - '9443:443' 
+#      - '9080:80'
+ #     - '9443:443' 
     restart: always
     volumes:
       - $DOCKERDIR/appdata/pihole/pihole:/etc/pihole
@@ -957,8 +958,9 @@ services:
       - VIRTUAL_PORT=80
       - TZ=$TZ
       - WEBPASSWORD=
-      - DNS1='192.168.90.251#5054'
-      - DNS2='' 
+      - PIHOLE_DNS_=192.168.90.251#5054;
+#      - DNS1='192.168.90.251#5054'
+#      - DNS1='127.0.0.1' 
 #      - DNS1=1.1.1.1 
 #      - DNS2=1.0.0.1
       - DNSMASQ_LISTENING=all
