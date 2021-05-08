@@ -530,7 +530,7 @@ services:
 
   # Plex - Media Server
   plexms:
-    image: plexinc/pms-docker:plexpass
+    image: plexinc/pms-docker:public
     container_name: plexms
     restart: unless-stopped
     networks:
