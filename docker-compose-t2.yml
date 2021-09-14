@@ -138,6 +138,7 @@ services:
       # - /var/run/docker.sock:/var/run/docker.sock:ro # Use Docker Socket Proxy instead for improved security
       - $DOCKERDIR/appdata/traefik2/acme/acme.json:/acme.json # cert location - you must touch this file and change permissions to 600
       - $DOCKERDIR/appdata/traefik2/traefik.log:/traefik.log # for fail2ban - make sure to touch file before starting container
+      - $DOCKERDIR/shared:/shared
     environment:
       - CF_API_EMAIL_FILE=/run/secrets/cloudflare_email
       - CF_API_KEY_FILE=/run/secrets/cloudflare_api_key
@@ -855,7 +856,8 @@ services:
       DOCKER_HOST: tcp://socket-proxy:2375
     labels:
       - "traefik.enable=true"
-      ## HTTP Routers
+      ## HTTP Routers networks:
+      - t2_proxy
       - "traefik.http.routers.vscode-rtr.entrypoints=https"
       - "traefik.http.routers.vscode-rtr.rule=Host(`code.$DOMAINNAME`)"
       ## Middlewares
@@ -937,8 +939,8 @@ services:
 #     - no-new-privileges:true
     ports:  
  #     - '67:67/udp'
-      - '$SERVER_IP:53:53/tcp'
-      - '$SERVER_IP:53:53/udp' 
+      - '192.168.86.5:53:53/tcp'
+      - '192.168.86.5:53:53/udp' 
 #      - '9080:80'
  #     - '9443:443' 
     restart: always
@@ -952,7 +954,7 @@ services:
     cap_add:
       - NET_ADMIN
     environment:
-      - ServerIP=$SERVER_IP
+      - ServerIP=192.168.86.5
       - PROXY_LOCATION=pihole
       - VIRTUAL_HOST=pihole.$DOMAINNAME
       - VIRTUAL_PORT=80
@@ -999,3 +1001,112 @@ services:
     networks:
       t2_proxy:
         ipv4_address: 192.168.90.251  
+
+### VPN ###
+  gluetun:
+    image: qmcgaw/gluetun
+    container_name: gluetun
+    restart: always
+    networks:
+      t2_proxy:
+        ipv4_address: 192.168.90.252
+    cap_add:
+      - NET_ADMIN
+    #network_mode: bridge
+    ports:
+    #  - 8888:8888/tcp # HTTP proxy
+    #  - 8388:8388/tcp # Shadowsocks
+    #  - 8388:8388/udp # Shadowsocks
+    #  - 8000:8000/tcp # Built-in HTTP control server
+      - 51820:51820/udp
+    # command:
+    volumes:
+      - $DOCKERDIR/appdata/gluetun:/gluetun
+    environment:
+      # More variables are available, see the readme table
+      - OPENVPN_CUSTOM_CONFIG=/gluetun/vpn.conf
+      - OPENVPN_USER=$VPN_UN
+      - OPENVPN_PASSWORD=$VPN_PW
+      - VPNSP=vpn unlimited
+      # Timezone for accurate logs times
+      - TZ=$TZ
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.gluetun-vpn-rtr.entrypoints=https"
+      - "traefik.http.routers.gluetun-vpn-rtr.rule=Host(`gluetun.$DOMAINNAME`)"
+      ## Middlewares
+      - "traefik.http.routers.gluetun-vpn-rtr.middlewares=middlewares-rate-limit@file"
+      ## HTTP Services
+      - "traefik.http.routers.gluetun-vpn-rtr.service=gluetun-vpn-svc"
+      - "traefik.http.services.gluetun-vpn-svc.loadbalancer.server.port=9091"
+  
+  wireguard:
+    container_name: wireguard
+    image: linuxserver/wireguard
+    restart: always
+    network_mode: container:gluetun
+    #networks:
+      #t2_proxy:
+        #ipv4_address: 192.168.90.249
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+      - SERVERURL=vpn.$DOMAINNAME #optional
+      - SERVERPORT=51820 #optional
+      - PEERS=1 #optional
+      - PEERDNS=192.168.90.253 #optional
+      - INTERNAL_SUBNET=10.254.1.0/24 #optional
+    volumes:
+      - $DOCKERDIR/appdata/wireguard/config:/config
+      - $DOCKERDIR/appdata/wireguard/lib/modules:/lib/modules
+    #ports:
+      #- 51820:51820/udp
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.wireguard-rtr.entrypoints=https"
+      - "traefik.http.routers.wireguard-rtr.rule=Host(`vpn.$DOMAINNAME`)"
+      - "traefik.http.routers.wireguard-rtr.tls=true"
+      ## Middlewares
+      - "traefik.http.routers.wireguard-rtr.middlewares=chain-oauth@file"
+      ## HTTP Services
+      - "traefik.http.routers.wireguard-rtr.service=wireguard-svc"
+      - "traefik.udp.services.wireguard-svc.loadbalancer.server.port=51820"
+
+
+#  valheim:
+#    image: mbround18/valheim:latest
+#    networks:
+#      - t2_proxy
+#    ports:
+#      - 2456:2456/udp
+#      - 2457:2457/udp
+#      - 2458:2458/udp
+#    environment:
+#      - PORT=2456
+#      - NAME="Goldfinger"
+#      - WORLD="Dedicated"
+#      - PASSWORD="vikings"
+#      - TZ=$TZ
+#      - PUBLIC=1
+#      - AUTO_UPDATE=1
+#      - AUTO_UPDATE_SCHEDULE="0 1 * * *"
+#      - AUTO_BACKUP=1
+#      - AUTO_BACKUP_SCHEDULE="*/15 * * * *"
+#      - AUTO_BACKUP_REMOVE_OLD=1
+#      - AUTO_BACKUP_DAYS_TO_LIVE=3
+#      - AUTO_BACKUP_ON_UPDATE=1
+#      - AUTO_BACKUP_ON_SHUTDOWN=1
+#      - BEPINEX=true      
+#    volumes:
+#      - ./valheim/saves:/home/steam/.config/unity3d/IronGate/Valheim
+#      - ./valheim/server:/home/steam/valheim
+#      - ./valheim/backups:/home/steam/backups
+##      - ./valheim/config:/home/steam/
