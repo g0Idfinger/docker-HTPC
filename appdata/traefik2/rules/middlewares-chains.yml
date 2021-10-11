@@ -24,6 +24,7 @@ http:
       chain:
         middlewares:
           - middlewares-rate-limit
+          - middlewares-https-redirectscheme
           - middlewares-secure-headers
           - middlewares-authelia
 

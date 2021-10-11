@@ -1,4 +1,4 @@
-version: "3.7"
+version: "3.9"
 
 ########################### NETWORKS
 # Create t2_proxy network
@@ -69,7 +69,7 @@ services:
   # touch $DOCKERDIR/appdata/traefik2/traefik.log
   traefik:
     container_name: traefik
-    image: traefik:livarot
+    image: traefik:2.5
     restart: always
     command: # CLI arguments
       - --global.checkNewVersion=true
@@ -234,19 +234,20 @@ services:
       - AUTHELIA_JWT_SECRET_FILE=/run/secrets/authelia_jwt_secret
       - AUTHELIA_SESSION_SECRET_FILE=/run/secrets/authelia_session_secret
       - AUTHELIA_STORAGE_MYSQL_PASSWORD_FILE=/run/secrets/authelia_storage_mysql_password
-      - AUTHELIA_NOTIFIER_SMTP_PASSWORD_FILE=/run/secrets/authelia_notifier_smtp_password
+    #  - AUTHELIA_NOTIFIER_SMTP_PASSWORD_FILE=/run/secrets/authelia_notifier_smtp_password
       - AUTHELIA_DUO_API_SECRET_KEY_FILE=/run/secrets/authelia_duo_api_secret_key
     secrets:
       - authelia_jwt_secret
       - authelia_session_secret
       - authelia_storage_mysql_password
-      - authelia_notifier_smtp_password
+     # - authelia_notifier_smtp_password
       - authelia_duo_api_secret_key
     labels:
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.authelia-rtr.entrypoints=https"
       - "traefik.http.routers.authelia-rtr.rule=Host(`authelia.$DOMAINNAME`)"
+      - "traefik.http.routers.authelia-rtr.tls=true"
       ## Middlewares
       - "traefik.http.routers.authelia-rtr.middlewares=chain-authelia@file"
       ## HTTP Services
@@ -389,7 +390,7 @@ services:
       PUID: $PUID
       PGID: $PGID
       TZ: $TZ
-      UMASK_SET: 002
+      UMASK: 002
       WEBUI_PORT: 8168
     networks:
       - t2_proxy
@@ -994,7 +995,7 @@ services:
 
   cloudflared:
     container_name: cloudflared
-    image: visibilityspots/cloudflared:amd64
+    image: visibilityspots/cloudflared:latest
     cap_add:
       - NET_ADMIN
     restart: always
@@ -1002,84 +1003,124 @@ services:
       t2_proxy:
         ipv4_address: 192.168.90.251  
 
-### VPN ###
-  gluetun:
-    image: qmcgaw/gluetun
-    container_name: gluetun
-    restart: always
-    networks:
-      t2_proxy:
-        ipv4_address: 192.168.90.252
-    cap_add:
-      - NET_ADMIN
-    #network_mode: bridge
-    ports:
-    #  - 8888:8888/tcp # HTTP proxy
-    #  - 8388:8388/tcp # Shadowsocks
-    #  - 8388:8388/udp # Shadowsocks
-    #  - 8000:8000/tcp # Built-in HTTP control server
-      - 51820:51820/udp
-    # command:
-    volumes:
-      - $DOCKERDIR/appdata/gluetun:/gluetun
-    environment:
-      # More variables are available, see the readme table
-      - OPENVPN_CUSTOM_CONFIG=/gluetun/vpn.conf
-      - OPENVPN_USER=$VPN_UN
-      - OPENVPN_PASSWORD=$VPN_PW
-      - VPNSP=vpn unlimited
-      # Timezone for accurate logs times
-      - TZ=$TZ
-    labels:
-      - "traefik.enable=true"
-      ## HTTP Routers
-      - "traefik.http.routers.gluetun-vpn-rtr.entrypoints=https"
-      - "traefik.http.routers.gluetun-vpn-rtr.rule=Host(`gluetun.$DOMAINNAME`)"
-      ## Middlewares
-      - "traefik.http.routers.gluetun-vpn-rtr.middlewares=middlewares-rate-limit@file"
-      ## HTTP Services
-      - "traefik.http.routers.gluetun-vpn-rtr.service=gluetun-vpn-svc"
-      - "traefik.http.services.gluetun-vpn-svc.loadbalancer.server.port=9091"
-  
-  wireguard:
-    container_name: wireguard
-    image: linuxserver/wireguard
-    restart: always
-    network_mode: container:gluetun
-    #networks:
-      #t2_proxy:
-        #ipv4_address: 192.168.90.249
-    cap_add:
-      - NET_ADMIN
-      - SYS_MODULE
-    environment:
-      - PUID=$PUID
-      - PGID=$PGID
-      - TZ=$TZ
-      - SERVERURL=vpn.$DOMAINNAME #optional
-      - SERVERPORT=51820 #optional
-      - PEERS=1 #optional
-      - PEERDNS=192.168.90.253 #optional
-      - INTERNAL_SUBNET=10.254.1.0/24 #optional
-    volumes:
-      - $DOCKERDIR/appdata/wireguard/config:/config
-      - $DOCKERDIR/appdata/wireguard/lib/modules:/lib/modules
-    #ports:
-      #- 51820:51820/udp
-    sysctls:
-      - net.ipv4.conf.all.src_valid_mark=1
-    labels:
-      - "traefik.enable=true"
-      ## HTTP Routers
-      - "traefik.http.routers.wireguard-rtr.entrypoints=https"
-      - "traefik.http.routers.wireguard-rtr.rule=Host(`vpn.$DOMAINNAME`)"
-      - "traefik.http.routers.wireguard-rtr.tls=true"
-      ## Middlewares
-      - "traefik.http.routers.wireguard-rtr.middlewares=chain-oauth@file"
-      ## HTTP Services
-      - "traefik.http.routers.wireguard-rtr.service=wireguard-svc"
-      - "traefik.udp.services.wireguard-svc.loadbalancer.server.port=51820"
+#### VPN ###
+#  gluetun:
+#    image: qmcgaw/gluetun
+#    container_name: gluetun
+#    restart: always
+#    networks:
+#      t2_proxy:
+#        ipv4_address: 192.168.90.252
+#    cap_add:
+#      - NET_ADMIN
+#    #network_mode: bridge
+#    ports:
+#    #  - 8888:8888/tcp # HTTP proxy
+#    #  - 8388:8388/tcp # Shadowsocks
+#    #  - 8388:8388/udp # Shadowsocks
+#    #  - 8000:8000/tcp # Built-in HTTP control server
+#      - 51820:51820/udp
+#    # command:
+#    volumes:
+#      - $DOCKERDIR/appdata/gluetun:/gluetun
+#    environment:
+#      # More variables are available, see the readme table
+#      - OPENVPN_CUSTOM_CONFIG=/gluetun/vpn.conf
+#      - OPENVPN_USER=$VPN_UN
+#      - OPENVPN_PASSWORD=$VPN_PW
+#      - VPNSP=vpn unlimited
+#      # Timezone for accurate logs times
+#      - TZ=$TZ
+#    labels:
+#      - "traefik.enable=true"
+#      ## HTTP Routers
+#      - "traefik.http.routers.gluetun-vpn-rtr.entrypoints=https"
+#      - "traefik.http.routers.gluetun-vpn-rtr.rule=Host(`gluetun.$DOMAINNAME`)"
+#      ## Middlewares
+#      - "traefik.http.routers.gluetun-vpn-rtr.middlewares=middlewares-rate-limit@file"
+#      ## HTTP Services
+#      - "traefik.http.routers.gluetun-vpn-rtr.service=gluetun-vpn-svc"
+#      - "traefik.http.services.gluetun-vpn-svc.loadbalancer.server.port=9091"
+#  
+#  wireguard:
+#    container_name: wireguard
+#    image: linuxserver/wireguard
+#    restart: always
+#    network_mode: container:gluetun
+#    #networks:
+#      #t2_proxy:
+#        #ipv4_address: 192.168.90.249
+#    cap_add:
+#      - NET_ADMIN
+#      - SYS_MODULE
+#    environment:
+#      - PUID=$PUID
+#      - PGID=$PGID
+#      - TZ=$TZ
+#      - SERVERURL=vpn.$DOMAINNAME #optional
+#      - SERVERPORT=51820 #optional
+#      - PEERS=1 #optional
+#      - PEERDNS=192.168.90.253 #optional
+#      - INTERNAL_SUBNET=10.254.1.0/24 #optional
+#    volumes:
+#      - $DOCKERDIR/appdata/wireguard/config:/config
+#      - $DOCKERDIR/appdata/wireguard/lib/modules:/lib/modules
+#    #ports:
+#      #- 51820:51820/udp
+#    sysctls:
+#      - net.ipv4.conf.all.src_valid_mark=1
+#    labels:
+#      - "traefik.enable=true"
+#      ## HTTP Routers
+#      - "traefik.http.routers.wireguard-rtr.entrypoints=https"
+#      - "traefik.http.routers.wireguard-rtr.rule=Host(`vpn.$DOMAINNAME`)"
+#      - "traefik.http.routers.wireguard-rtr.tls=true"
+#      ## Middlewares
+#      - "traefik.http.routers.wireguard-rtr.middlewares=chain-oauth@file"
+#      ## HTTP Services
+#      - "traefik.http.routers.wireguard-rtr.service=wireguard-svc"
+#      - "traefik.udp.services.wireguard-svc.loadbalancer.server.port=51820"
 
+  # UniFi Controller - Managing UniFi Network
+  unifi:
+    container_name: unifi
+    image: jacobalberty/unifi:latest
+    restart: unless-stopped
+    networks:
+      - t2_proxy
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+      - "3478:3478/udp"
+      - "10001:10001/udp"
+      - "6789:6789"
+      - "8880:8880"
+    volumes:
+      - ${DOCKERDIR}/appdata/unifi:/unifi
+      - ${DOCKERDIR}/appdata/unifi/data:/unifi/data
+      - ${DOCKERDIR}/appdata/unifi/log:/unifi/log
+      - ${DOCKERDIR}/appdata/unifi/cert:/unifi/cert
+      - ${DOCKERDIR}/appdata/unifi/init:/unifi/init.d
+      - ${DOCKERDIR}/appdata/unifi/run:/var/run/unifi
+    environment:
+      UNIFI_UID: $PUID
+      UNIFI_GID: $PGID
+      TZ: America/Phoenix
+      RUNAS_UID0: "false"
+      BIND_PRIV: "false"
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.unifi-rtr.entrypoints=https"
+      - "traefik.http.routers.unifi-rtr.rule=HostHeader(`uni.$DOMAINNAME`)"
+      ## Middlewares
+      - "traefik.http.routers.unifi-rtr.middlewares=chain-authelia@file"
+      ## HTTP Services
+      - "traefik.http.routers.unifi-rtr.service=unifi-svc"
+      - "traefik.http.services.unifi-svc.loadbalancer.server.port=8443"
+      - "traefik.http.services.unifi-svc.loadbalancer.server.scheme=https"
 
 #  valheim:
 #    image: mbround18/valheim:latest
