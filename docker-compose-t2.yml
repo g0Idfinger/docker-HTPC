@@ -11,13 +11,21 @@ version: "3.9"
 
 networks:
   t2_proxy:
-    external:
-      name: t2_proxy
+    name: t2_proxy
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.90.0/24
   default:
     driver: bridge
   socket_proxy:
-    external:
-      name: socket_proxy
+    name: socket_proxy
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.91.0/24
+
+
 
 ########################### SECRETS
 secrets:
@@ -170,8 +178,8 @@ services:
       socket_proxy:
         ipv4_address: 192.168.91.254 # You can specify a static IP
     privileged: true
-    ports:
-      - "2375:2375"
+   # ports:
+   #   - "2375:2375"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
     environment:
@@ -188,7 +196,6 @@ services:
       - AUTH=0
       - SECRETS=0
       - POST=1 # Watchtower
-      - DELETE=1 # Watchtower
         # GET Optons
       - BUILD=0
       - COMMIT=0
@@ -207,13 +214,6 @@ services:
       - SYSTEM=0
       - TASKS=1 # Portaienr
       - VOLUMES=1 # Portainer
-      # POST Options
-      - CONTAINERS_CREATE=1 # WatchTower
-      - CONTAINERS_START=1 # WatchTower
-      - CONTAINERS_UPDATE=1 # WatchTower
-      # DELETE Options
-      - CONTAINERS_DELETE=1 # WatchTower
-      - IMAGES_DELETE=1 # WatchTower
 
 #### AUTHENTICATION 
   # Authelia (Lite) - Self-Hosted Single Sign-On and Two-Factor Authentication
@@ -328,12 +328,11 @@ services:
       - no-new-privileges:true
     volumes:
       - $DOCKERDIR/appdata/mariadb/:/config
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
     environment:
       - PUID=$PUID
       - PGID=$PGID
-      - MYSQL_ROOT_PASSWORD_FILE=/run/secrets/mysql_root_password # Not taking this pw during initialization
+      - TZ=$TZ
+      - FILE__MYSQL_ROOT_PASSWORD=/run/secrets/mysql_root_password # Not taking this pw during initialization
     secrets:
       - mysql_root_password
   
@@ -426,7 +425,7 @@ services:
       - $DOCKERDIR/appdata/jackett:/config
       - /mnt/Media/Downloads/completed:/downloads
       - "/etc/localtime:/etc/localtime:ro"
-      - $DOCKERDIR/shared:/shared
+     # - $DOCKERDIR/shared:/shared
     environment:
       PUID: $PUID
       PGID: $PGID
@@ -464,7 +463,7 @@ services:
       - /mnt/Media/Downloads:/downloads
       - /mnt/Media/Movies:/movies
       - "/etc/localtime:/etc/localtime:ro"
-      - $DOCKERDIR/shared:/shared
+      #- $DOCKERDIR/shared:/shared
     environment:
       PUID: $PUID
       PGID: $PGID
@@ -505,7 +504,7 @@ services:
       - /mnt/Media/Downloads:/downloads
       - /mnt/Media/Shows:/tv
       - "/etc/localtime:/etc/localtime:ro"
-      - $DOCKERDIR/shared:/shared
+    #  - $DOCKERDIR/shared:/shared
     environment:
       PUID: $PUID
       PGID: $PGID
@@ -560,7 +559,7 @@ services:
 #      - $USERDIR/Downloads/plex_tmp:/transcode
     environment:
       TZ: $TZ
-      HOSTNAME: "nucPlex"
+      HOSTNAME: "Silky Plex"
       PLEX_CLAIM_FILE: /run/secrets/plex_claim
       PLEX_UID: $PUID
       PLEX_GID: $PGID
@@ -607,6 +606,31 @@ services:
       ## HTTP Services
       - "traefik.http.routers.tautulli-rtr.service=tautulli-svc"
       - "traefik.http.services.tautulli-svc.loadbalancer.server.port=8181"
+
+  # Plex AutoScan - On demand/specific folder scanning for Plex
+  autoscan:
+    image: hotio/autoscan
+    container_name: autoscan
+    restart: "no"
+    # profiles:
+    # - media
+    # - testing
+    networks:
+      - t2_proxy
+    security_opt:
+      - no-new-privileges:true
+    #ports:
+    #  - "3030:3030"
+    environment:
+      PUID: $PUID
+      PGID: $PGID
+      TZ: $TZ
+      UMASK: 002
+      #PLEX_LOGIN: ""
+      #PLEX_PASSWORD: ""
+    volumes:
+      - $DOCKERDIR/appdata/autoscan:/config
+
 
   ############################# MEDIA FILE MANAGEMENT
 #Photo album
@@ -825,9 +849,9 @@ services:
     environment:
       - TIMEZONE=$TZ
       - TRAEFIK_VERSION=2
-      - CF_EMAIL=$CLOUDFLARE_EMAIL # Same as traefik
-      #- CF_TOKEN=$CLOUDFLARE_API_TOKEN # Scoped api token not working. Error 10000.
-      - CF_TOKEN=$CLOUDFLARE_API_KEY # Same as traefik
+    #- CF_EMAIL=$CLOUDFLARE_EMAIL # Same as traefik
+      - CF_TOKEN=$CLOUDFLARE_API_TOKEN # Scoped api token not working. Error 10000.
+     # - CF_TOKEN=$CLOUDFLARE_API_KEY # Same as traefik
       - TARGET_DOMAIN=$DOMAINNAME
       - DOMAIN1=$DOMAINNAME
       - DOMAIN1_ZONE_ID=$CLOUDFLARE_ZONEID # Copy from Cloudflare Overview page
