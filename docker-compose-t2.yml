@@ -34,6 +34,8 @@ networks:
 
 ########################### SECRETS
 secrets:
+  htpasswd:
+    file: $DOCKERDIR/secrets/htpasswd
   cloudflare_email:
     file: $SECRETSDIR/cloudflare_email
   cloudflare_api_key:
@@ -89,7 +91,7 @@ x-network-and-security: &network-and-security
     - no-new-privileges:true
 
 # Keys common to some of the services in basic-services.txt
-x-common-keys-basic: &common-keys-basic
+x-common-keys-core: &common-keys-core
   <<: *network-and-security
   restart: always
   # profiles:
@@ -119,9 +121,9 @@ services:
   # chmod 600 $DOCKERDIR/appdata/traefik2/acme/acme.json
   # touch $DOCKERDIR/appdata/traefik2/traefik.log
   traefik:
-    <<: *common-keys-basic # See EXTENSION FIELDS at the top
+    <<: *common-keys-core # See EXTENSION FIELDS at the top
     container_name: traefik
-    image: traefik:v2.5
+    image: traefik:latest
     command: # CLI arguments
       - --global.checkNewVersion=true
       - --global.sendAnonymousUsage=true
@@ -130,14 +132,12 @@ services:
       # Allow these IPs to set the X-Forwarded-* headers - Cloudflare IPs: https://www.cloudflare.com/ips/
       - --entrypoints.https.forwardedHeaders.trustedIPs=173.245.48.0/20,103.21.244.0/22,103.22.200.0/22,103.31.4.0/22,141.101.64.0/18,108.162.192.0/18,190.93.240.0/20,188.114.96.0/20,197.234.240.0/22,198.41.128.0/17,162.158.0.0/15,104.16.0.0/13,104.24.0.0/14,172.64.0.0/13,131.0.72.0/22
       - --entryPoints.traefik.address=:8080
-      - --entrypoints.dnstcp.address=:53/tcp
-      - --entrypoints.dnsudp.address=:53/udp
       - --api=true
       # - --api.insecure=true
       - --api.dashboard=true
       - --log=true
       - --log.level=WARN # (Default: error) DEBUG, INFO, WARN, ERROR, FATAL, PANIC
-      - --accessLog=true
+      - --accessLog=false
       - --accessLog.filePath=/traefik.log
       - --accessLog.bufferingSize=100 # Configuring a buffer of 100 lines
       - --accessLog.filters.statusCodes=400-499
@@ -169,8 +169,6 @@ services:
       t2_proxy:
         ipv4_address: 192.168.90.254 # You can specify a static IP
       socket_proxy:
-    security_opt:
-      - no-new-privileges:true
     ports:
       # https://www.reddit.com/r/docker/comments/c1wrep/traefik_reverse_proxy_question_docker_overlay/
       - target: 80
@@ -192,6 +190,7 @@ services:
     secrets:
       - cloudflare_email
       - cloudflare_api_key
+      - htpasswd
     labels:
       - "traefik.enable=true"
       # HTTP-to-HTTPS Redirect
@@ -209,16 +208,13 @@ services:
 
   # Docker Socket Proxy - Security Enchanced Proxy for Docker Socket
   socket-proxy:
-    <<: *common-keys-basic
+    <<: *common-keys-core
     container_name: socket-proxy
-    image: tecnativa/docker-socket-proxy
+    image: fluencelabs/docker-socket-proxy
     networks:
-      # t2_proxy:
       socket_proxy:
         ipv4_address: 192.168.91.254 # You can specify a static IP
     privileged: true
-   # ports:
-   #   - "2375:2375"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
     environment:
@@ -295,21 +291,15 @@ services:
 
  # Portainer - WebUI for Containers
   portainer:
+    <<: *common-keys-core
     container_name: portainer
     image: portainer/portainer-ce:latest
-    restart: unless-stopped
     #command: -H unix:///var/run/docker.sock # # Use Docker Socket Proxy instead for improved security
     command: -H tcp://socket-proxy:2375 # appears to not work. Workaround was to create a new socket-proxy:2375 endpoint on portainer settings
     networks:
       - t2_proxy
       - socket_proxy
-    depends_on:
-      - traefik
-      - socket-proxy
-    security_opt:
-      - no-new-privileges:true
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro # # Use Docker Socket Proxy instead for improved security
       - $DOCKERDIR/appdata/portainer/data:/data # Change to local directory if you want to save/transfer config locally
     environment:
       - TZ=$TZ
@@ -323,35 +313,6 @@ services:
       ## HTTP Services
       - "traefik.http.routers.portainer-rtr.service=portainer-svc"
       - "traefik.http.services.portainer-svc.loadbalancer.server.port=9000"
-
-  # Heimdall - Unified Frontend Alternative
-  # Putting all services behind Oragnizr slows things down.
-  heimdall:
-    container_name: heimdall
-    image: linuxserver/heimdall:latest
-    restart: unless-stopped
-    networks:
-      - t2_proxy
-    security_opt:
-      - no-new-privileges:true
-    #    ports:
-    #      - "$HEIMDALL_PORT:80"
-    volumes:
-      - $DOCKERDIR/appdata/heimdall:/config
-    environment:
-      - PUID=$PUID
-      - PGID=$PGID
-      - TZ=$TZ
-    labels:
-      - "traefik.enable=true"
-      ## HTTP Routers
-      - "traefik.http.routers.heimdall-rtr.entrypoints=https"
-      - "traefik.http.routers.heimdall-rtr.rule=Host(`heimdall.$DOMAINNAME`)"
-      ## Middlewares
-      - "traefik.http.routers.heimdall-rtr.middlewares=chain-authelia@file"
-      ## HTTP Services
-      - "traefik.http.routers.heimdall-rtr.service=heimdall-svc"
-      - "traefik.http.services.heimdall-svc.loadbalancer.server.port=80"
 
     ############################# DATABASE
   # MariaDB - MySQL Database
@@ -411,9 +372,9 @@ services:
   ############################# DOWNLOADERS
 # qBittorrent - Torrent downloader
   qbittorrent:
+    <<: *common-keys-apps
     image: lscr.io/linuxserver/qbittorrent:latest
     container_name: qbittorrent
-    restart: always
 #    network_mode: service:qbittorrentvpn
     networks:
       - t2_proxy
@@ -427,9 +388,7 @@ services:
       - $DOCKERDIR/appdata/qbittorrent:/config
       - /mnt/Media/Downloads:/downloads
     environment:
-      PUID: $PUID
-      PGID: $PGID
-      TZ: $TZ
+      <<: *default-tz-puid-pgid
       UMASK: 002
       WEBUI_PORT: 8168
     labels:
@@ -449,15 +408,13 @@ services:
   # Jackett - Torrent proxy
   # Set url_base in Jackett settings if using PathPrefix
   jackett:
+    <<: *common-keys-apps
     image: lscr.io/linuxserver/jackett:latest
     container_name: jackett
-    restart: always
     # network_mode: container:transmission-vpn
     networks:
       t2_proxy:
         ipv4_address: 192.168.90.200
-    security_opt:
-      - no-new-privileges:true
     #ports:
      # - "$JACKETT_PORT:9117"
     volumes:
@@ -465,9 +422,7 @@ services:
       - /mnt/Media/Downloads/completed:/downloads
       - "/etc/localtime:/etc/localtime:ro"
     environment:
-      PUID: $PUID
-      PGID: $PGID
-      TZ: $TZ
+      <<: *default-tz-puid-pgid
     labels:
       - "traefik.enable=true"
       ## HTTP Routers
@@ -484,15 +439,12 @@ services:
   # Radarr - Movie management
   # Set url_base in radarr settings if using PathPrefix
   radarr:
-    # image: aront/radarr #for mp4_automator support
+    <<: *common-keys-media
     image: lscr.io/linuxserver/radarr:latest
     container_name: radarr
-    restart: unless-stopped
     networks:
       t2_proxy:
         ipv4_address: 192.168.90.201
-    security_opt:
-      - no-new-privileges:true
     #ports:
      # - "$RADARR_PORT:7878"
     volumes:
@@ -502,9 +454,7 @@ services:
       - "/etc/localtime:/etc/localtime:ro"
       #- $DOCKERDIR/shared:/shared
     environment:
-      PUID: $PUID
-      PGID: $PGID
-      TZ: $TZ
+      <<: *default-tz-puid-pgid
     labels:
       - "traefik.enable=true"
       ## HTTP Routers Auth Bypass
@@ -526,14 +476,11 @@ services:
   # Sonarr - TV Shows management
   # Set url_base in sonarr settings if using PathPrefix
   sonarr:
-    # image: aront/sonarr  #for mp4_automator support
+    <<: *common-keys-media
     image: lscr.io/linuxserver/sonarr:latest
     container_name: sonarr
-    restart: unless-stopped
     networks:
       - t2_proxy
-    security_opt:
-      - no-new-privileges:true
     #ports:
     #  - "$SONARR_PORT:8989"
     volumes:
@@ -543,9 +490,7 @@ services:
       - "/etc/localtime:/etc/localtime:ro"
     #  - $DOCKERDIR/shared:/shared
     environment:
-      PUID: $PUID
-      PGID: $PGID
-      TZ: $TZ
+      <<: *default-tz-puid-pgid
     labels:
       - "traefik.enable=true"
       ## HTTP Routers Auth Bypass
@@ -568,16 +513,14 @@ services:
 
   # Plex - Media Server
   plexms:
+    <<: *common-keys-media
     image: plexinc/pms-docker:plexpass
     container_name: plexms
-    restart: unless-stopped
     networks:
       t2_proxy:
         ipv4_address: 192.168.90.249
     devices:
       - /dev/dri:/dev/dri # for harware transcoding
-    security_opt:
-      - no-new-privileges:true
     ports:
       - "$PLEX_PORT:32400/tcp"
       - "3005:3005/tcp"
@@ -618,22 +561,18 @@ services:
   # Tautulli - Previously PlexPy. Plex statistics and monitoring
   # Set HTTP Root in Tautulli settings if using PathPrefix
   tautulli:
+    <<: *common-keys-media
     image: linuxserver/tautulli:latest
     container_name: tautulli
-    restart: unless-stopped
     networks:
       - t2_proxy
-    security_opt:
-      - no-new-privileges:true
     # ports:
     #  - "$TAUTULLI_PORT:8181"
     volumes:
       - $DOCKERDIR/appdata/tautulli/config:/config
       - $DOCKERDIR/appdata/plexms/Library/Application Support/Plex Media Server/Logs:/logs:ro
     environment:
-      PUID: $PUID
-      PGID: $PGID
-      TZ: $TZ
+      <<: *default-tz-puid-pgid
     labels:
       - "traefik.enable=true"
       ## HTTP Routers
@@ -706,9 +645,9 @@ services:
 
   # Glances - System Information
   glances:
+    <<: *common-keys-apps
     image: nicolargo/glances:latest
     container_name: glances
-    restart: unless-stopped
     privileged: true
     # network_mode: host
     networks:
@@ -717,8 +656,6 @@ services:
       - default
     #depends_on:
      # - socket-proxy
-    security_opt:
-      - no-new-privileges:true
     # ports:
     #   - "$GLANCES_PORT:61208"
     pid: host
@@ -743,16 +680,12 @@ services:
 
   # Dozzle - Real-time Docker Log Viewer
   dozzle:
+    <<: *common-keys-apps
     image: amir20/dozzle:latest
     container_name: dozzle
-    restart: unless-stopped
     networks:
       - t2_proxy
       - socket_proxy
-    depends_on:
-      - socket-proxy
-    security_opt:
-      - no-new-privileges:true
     # ports:
     #   - "$DOZZLE_PORT:8080"
     environment:
@@ -773,66 +706,13 @@ services:
       ## HTTP Services
       - "traefik.http.routers.dozzle-rtr.service=dozzle-svc"
       - "traefik.http.services.dozzle-svc.loadbalancer.server.port=8080"
-  
-  # Guacamole - Remote desktop, SSH, on Telnet on any HTML5 Browser
-  # Create all databases and tables first
-  guacamole:
-    image: guacamole/guacamole:latest
-    container_name: guacamole
-    restart: unless-stopped
-    networks:
-      - t2_proxy
-      - default
-    security_opt:
-      - no-new-privileges:true
-    # ports:
-    #   - "$GUACAMOLE_PORT:8080"
-    environment:
-      GUACD_HOSTNAME: guacd
-      MYSQL_HOSTNAME: $DB_HOST
-      MYSQL_PORT: $DB_PORT
-      MYSQL_DATABASE_FILE: /run/secrets/guac_db_name
-      MYSQL_USER_FILE: /run/secrets/guac_mysql_user
-      MYSQL_PASSWORD_FILE: /run/secrets/guac_mysql_password
-    secrets:
-      - guac_db_name
-      - guac_mysql_user
-      - guac_mysql_password
-    labels:
-      - "traefik.enable=true"
-      ## HTTP Routers
-      - "traefik.http.routers.guacamole-rtr.entrypoints=https"
-      - "traefik.http.routers.guacamole-rtr.rule=Host(`guac.$DOMAINNAME`)"
-      ## Middlewares
-      - "traefik.http.routers.guacamole-rtr.middlewares=chain-authelia@file,add-guacamole"
-      - "traefik.http.middlewares.add-guacamole.addPrefix.prefix=/guacamole"
-      ## HTTP Services
-      - "traefik.http.routers.guacamole-rtr.service=guacamole-svc"
-      - "traefik.http.services.guacamole-svc.loadbalancer.server.port=8080"
-
-  # Guacamole Daemon - Needed for Guacamole
-  guacd:
-    image: guacamole/guacd
-    container_name: guacd
-    restart: unless-stopped
-    networks:
-      - t2_proxy
-    security_opt:
-      - no-new-privileges:true
- 
-
-  ############################# MAINTENANCE
-
-  # Docker-GC - Automatic Docker Garbage Collection
   # Create docker-gc-exclude file
   dockergc:
+    <<: *common-keys-apps
     image: clockworksoul/docker-gc-cron:latest
     container_name: docker-gc
-    restart: unless-stopped
     networks:
       - socket_proxy
-    depends_on:
-      - socket-proxy
     volumes:
       # - /var/run/docker.sock:/var/run/docker.sock # Use Docker Socket Proxy instead for improved security
       - $DOCKERDIR/appdata/docker-gc/docker-gc-exclude:/etc/docker-gc-exclude
@@ -846,26 +726,11 @@ services:
       TZ: $TZ
       DOCKER_HOST: tcp://socket-proxy:2375
 
-  # Traefik Certs Dumper - Extract LetsEncrypt Certificates - Traefik2 Compatible
-  certdumper:
-    container_name: traefik_certdumper
-    image: humenius/traefik-certs-dumper:latest
-    network_mode: none
-    security_opt:
-      - no-new-privileges:true
-    # command: --restart-containers container1,container2,container3
-    volumes:
-      - $DOCKERDIR/appdata/traefik2/acme:/traefik:ro
-      - $DOCKERDIR/shared/certs:/output:rw
-      # - /var/run/docker.sock:/var/run/docker.sock:ro # Only needed if restarting containers (use Docker Socket Proxy instead)
-    environment:
-      DOMAIN: $DOMAINNAME
-
   # Cloudflare DDNS - Dynamic DNS Updater
   cf-ddns:
+    <<: *common-keys-core
     container_name: cf-ddns
     image: oznu/cloudflare-ddns:latest
-    restart: always
     environment:
       - API_KEY=$CLOUDFLARE_API_TOKEN
       - ZONE=$DOMAINNAME
@@ -876,11 +741,9 @@ services:
       
    # Cloudflare-Companion - Automatic CNAME DNS Creation
   cf-companion:
+    <<: *common-keys-apps
     container_name: cf-companion
     image: tiredofit/traefik-cloudflare-companion:latest
-    security_opt:
-      - no-new-privileges:true
-    restart: unless-stopped
     networks:
       - socket_proxy
     #volumes:
@@ -888,89 +751,52 @@ services:
     environment:
       - TIMEZONE=$TZ
       - TRAEFIK_VERSION=2
-    #- CF_EMAIL=$CLOUDFLARE_EMAIL # Same as traefik
+      - DOCKER_HOST=tcp://socket-proxy:2375
+        # - CF_EMAIL=$CLOUDFLARE_EMAIL # Same as traefik
       - CF_TOKEN=$CLOUDFLARE_API_TOKEN # Scoped api token not working. Error 10000.
-     # - CF_TOKEN=$CLOUDFLARE_API_KEY # Same as traefik
+        # - CF_TOKEN=$CLOUDFLARE_API_KEY # Same as traefik
       - TARGET_DOMAIN=$DOMAINNAME
       - DOMAIN1=$DOMAINNAME
       - DOMAIN1_ZONE_ID=$CLOUDFLARE_ZONEID # Copy from Cloudflare Overview page
       - DOMAIN1_PROXIED=TRUE
+        #  - CONTAINER_LOG_LEVEL=DEBUG
     #  - cloudflare_api_token
-###### WordPress
-
-  # VSCode - VSCode Editing
-  vscode:
-    image: codercom/code-server:latest
-    container_name: vscode
-    restart: unless-stopped
-    networks:
-      - t2_proxy
-    volumes:
-      - $USERDIR/server:/home/coder/server
-      - $DOCKERDIR:/home/coder/docker
-      - $DOCKERDIR/appdata/vscode:/home/coder
-      - /mnt/Media:/home/coder/hdd1
-    environment:
-      PASSWORD: $VSCODE_PASSWORD
-      # Run as root first time (user: 0), then stop container, then change permissions to user:docker and 775. Disable run as root below.
-      user: $PUID:$PGID
-      # user: "0"
-      DOCKER_HOST: tcp://socket-proxy:2375
-    labels:
-      - "traefik.enable=true"
-      ## HTTP Routers networks:
-      - t2_proxy
-      - "traefik.http.routers.vscode-rtr.entrypoints=https"
-      - "traefik.http.routers.vscode-rtr.rule=Host(`code.$DOMAINNAME`)"
-      ## Middlewares
-      - "traefik.http.routers.vscode-rtr.middlewares=chain-authelia@file"
-      ## HTTP Services
-      - "traefik.http.routers.vscode-rtr.service=vscode-svc"
-      - "traefik.http.services.vscode-svc.loadbalancer.server.port=8080"
 
   ########Pi Hole##############
 
   pihole: 
+    #<<: *default-tz-puid-pgid
     container_name: pihole
     domainname: radloff.local 
     hostname: pihole
-    #privileged: true
 #    image: pihole/pihole:dev
     image: pihole/pihole:latest
-    # network_mode: host
     shm_size: '2g'
     depends_on:
       - dhcphelper
     networks:
       t2_proxy:
         ipv4_address: $PIHOLE_TRAEFIK_IP
-    #security_opt:
-     #- no-new-privileges:true
     ports:  
- #     - '67:67/udp'
       - "$SERVER_IP:53:53/tcp"
       - "$SERVER_IP:53:53/udp" 
-#      - '9080:80'
- #     - '9443:443' 
     restart: always
     volumes:
-      - $DOCKERDIR/appdata/pihole/pihole:/etc/pihole
+      #  - $DOCKERDIR/appdata/pihole/pihole:/etc/pihole
       - $DOCKERDIR/appdata/pihole/pihole.log:/var/log/pihole.log
       - $DOCKERDIR/appdata/pihole/dnsmasq.d:/etc/dnsmasq.d
     cap_add:
       - NET_ADMIN
     environment:
-      - FTLCONF_REPLY_ADDR4=$SERVER_IP
+     # - FTLCONF_REPLY_ADDR4=$SERVER_IP
       - PROXY_LOCATION=pihole
       - VIRTUAL_HOST=pihole.$DOMAINNAME
       - VIRTUAL_PORT=80
       - TZ=$TZ
       - WEBPASSWORD=
-      - PIHOLE_DNS_=192.168.90.251#5054;
+      - PIHOLE_DNS_=192.168.90.251#5054
       - WEBTHEME=default-dark
       - DNSMASQ_LISTENING=all
-      - PUID=999
-      - PGID=999
     labels:
       - "traefik.enable=true"
 #      - "traefik.backend=pihole"
@@ -987,12 +813,6 @@ services:
       # HTTP Services
       - "traefik.http.routers.pihole-rtr.service=pihole-svc"
       - "traefik.http.services.pihole-svc.loadbalancer.server.port=80"
-      ## DNS SERVICES
-      #- "traefik.tcp.routers.dnstcp.entrypoints=dnstcp"
-      #- "traefik.tcp.routers.dnstcp.rule=HostSNI(`*`)"
-      #- "traefik.tcp.services.pihole.loadbalancer.server.port=53"
-      #- "traefik.udp.routers.dnsudp.entrypoints=dnsudp"
-      #- "traefik.udp.services.pihole.loadbalancer.server.port=53"
 
   dhcphelper:
     build: ./dhcp-helper
@@ -1131,3 +951,14 @@ services:
       # HTTP Services
       - "traefik.http.routers.flaresolverr-rtr.service=flaresolverr-svc"
       - "traefik.http.services.flaresolverr-svc.loadbalancer.server.port=8191"
+      
+  sql-server-db:
+    container_name: sql-server-db
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    ports:
+      - "1433:1433"
+    volumes:
+      - ${DOCKERDIR}/appdata/mssql/data:/var/lib/mssqlql/data
+    environment:
+      SA_PASSWORD: "!!54testpassword45!!"
+      ACCEPT_EULA: "Y"
