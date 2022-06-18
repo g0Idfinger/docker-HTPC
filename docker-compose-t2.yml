@@ -81,30 +81,32 @@ x-environment: &default-tz-puid-pgid
   PUID: $PUID
   PGID: $PGID
 
-# Proxy Network and Security
-x-network-and-security: &network-and-security
+# Keys common to some of the services in basic-services.txt
+x-common-keys-core: &common-keys-core
   networks:
     - t2_proxy
   security_opt:
     - no-new-privileges:true
-
-# Keys common to some of the services in basic-services.txt
-x-common-keys-core: &common-keys-core
-  <<: *network-and-security
   restart: always
   # profiles:
-  # - basic
+  # - core
 
 # Keys common to some of the dependent services/apps
 x-common-keys-apps: &common-keys-apps
-  <<: *network-and-security
+  networks:
+    - t2_proxy
+  security_opt:
+    - no-new-privileges:true
   restart: unless-stopped
   # profiles:
   # - apps
 
 # Keys common to some of the services in media-services.txt
 x-common-keys-media: &common-keys-media
-  <<: *network-and-security
+  networks:
+    - t2_proxy
+  security_opt:
+    - no-new-privileges:true
   restart: "no"
   # profiles:
   # - media
@@ -134,7 +136,7 @@ services:
       - --api.dashboard=true
       - --log=true
       - --log.level=WARN # (Default: error) DEBUG, INFO, WARN, ERROR, FATAL, PANIC
-      - --accessLog=false
+      - --accessLog=true
       - --accessLog.filePath=/traefik.log
       - --accessLog.bufferingSize=100 # Configuring a buffer of 100 lines
       - --accessLog.filters.statusCodes=400-499
@@ -195,6 +197,7 @@ services:
       - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
       # HTTP Routers
+      - "traefik.http.routers.traefik-rtr.tls=true"
       - "traefik.http.routers.traefik-rtr.entrypoints=https"
       - "traefik.http.routers.traefik-rtr.rule=Host(`traefik.$DOMAINNAME`)"
       ## Services - API
@@ -325,10 +328,8 @@ services:
     volumes:
       - $DOCKERDIR/appdata/mariadb:/config
     environment:
-      - PUID=$PUID
-      - PGID=$PGID
-      - TZ=$TZ
-      - FILE__MYSQL_ROOT_PASSWORD=/run/secrets/mysql_root_password
+      <<: *default-tz-puid-pgid
+      FILE__MYSQL_ROOT_PASSWORD: /run/secrets/mysql_root_password
     secrets:
       - mysql_root_password
 
@@ -572,7 +573,11 @@ services:
       <<: *default-tz-puid-pgid
     labels:
       - "traefik.enable=true"
-      ## HTTP Routers
+    ## HTTP Routers Auth Bypass
+      - "traefik.http.routers.tautulli-rtr-bypass.entrypoints=https"
+      - "traefik.http.routers.tautulli-rtr-bypass.rule=Headers(`X-Api-Key`, `$TAUTULLI_DEVICE_KEY`) || Query(`apikey`, `$TAUTULLI_DEVICE_KEY`)"
+      - "traefik.http.routers.tautulli-rtr-bypass.priority=100"
+        ## HTTP Routers
       - "traefik.http.routers.tautulli-rtr.entrypoints=https"
       - "traefik.http.routers.tautulli-rtr.rule=Host(`tautulli.$DOMAINNAME`)"
       ## Middlewares
@@ -701,12 +706,12 @@ services:
     container_name: cf-ddns
     image: oznu/cloudflare-ddns:latest
     environment:
-      - API_KEY=$CLOUDFLARE_API_TOKEN
-      - ZONE=$DOMAINNAME
-      - PROXIED=true
-      - RRTYPE=A
-      - DELETE_ON_STOP=false
-      - DNS_SERVER=1.1.1.1
+      API_KEY: $CLOUDFLARE_API_TOKEN
+      ZONE: $DOMAINNAME
+      PROXIED: "true"
+      RRTYPE: A
+      DELETE_ON_STOP: "false"
+      DNS_SERVER: 172.16.0.2
       
    # Cloudflare-Companion - Automatic CNAME DNS Creation
   cf-companion:
@@ -889,36 +894,19 @@ services:
       #
   flaresolverr:
     # DockerHub mirror flaresolverr/flaresolverr:latest
+    <<: *common-keys-apps
     image: ghcr.io/flaresolverr/flaresolverr:latest
     container_name: flaresolverr
     environment:
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - LOG_HTML=${LOG_HTML:-false}
-      - CAPTCHA_SOLVER=${CAPTCHA_SOLVER:-none}
-      - TZ=Europe/London
+      LOG_LEVEL: info
+      LOG_HTML: false
+      CAPTCHA_SOLVER: none
+      TZ: $TZ
     networks:
       t2_proxy:
         ipv4_address: 192.168.90.199
      #ports:
      #  - "${PORT:-8191}:8191"
-    restart: unless-stopped
-      #    labels:
-      #      - "traefik.enable=true"
-#      - "traefik.backend=flaresolverr"
-#      - "traefik.port=80"
-     ## HTTP Routers
-     #      - "traefik.http.routers.flaresolverr-rtr.entrypoints=https"
-        #      - "traefik.http.routers.flaresolverr-rtr.rule=Host(`flaresolverr.$DOMAINNAME`)"
-        # - "traefik.http.routers.flaresolverr-rtr.tls=true"
-#      - "traefik.frontend.rule=HostRegexp:flaresolverr.$DOMAINNAME,{catchall:.*}"
-#      - "traefik.frontend.priority=1"
-      ## Middlewares
-      # - "traefik.http.routers.flaresolverr-rtr.middlewares=chain-authelia@file,add-pihole"
-      #- "traefik.http.middlewares.add-pihole.addPrefix.prefix=/admin"
-      # HTTP Services
-      #  - "traefik.http.routers.flaresolverr-rtr.service=flaresolverr-svc"
-      # - "traefik.http.services.flaresolverr-svc.loadbalancer.server.port=8191"
-      
   sql-server-db:
     container_name: sql-server-db
     image: mcr.microsoft.com/mssql/server:2019-latest
