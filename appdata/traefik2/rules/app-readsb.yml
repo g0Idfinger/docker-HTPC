@@ -1,0 +1,16 @@
+http:
+  routers:
+    readsb-rtr:
+      rule: "Host(`readsb.adamradloff.com`)"
+      entryPoints:
+        - https
+      middlewares:
+        - chain-authelia
+      service: readsb-svc
+      tls:
+        certResolver: dns-cloudflare
+  services:
+    readsb-svc:
+      loadBalancer:
+        servers:
+         - url: "http://10.100.255.218:8080"  # or whatever your external host's IP:port is
