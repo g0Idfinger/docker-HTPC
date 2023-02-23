@@ -32,7 +32,7 @@ http:
         stsPreload: true
         forceSTSHeader: true
         # frameDeny: true #overwritten by customFrameOptionsValue
-        customFrameOptionsValue: "allow-from https:example.com" #CSP takes care of this but may be needed for organizr.
+        customFrameOptionsValue: "allow-from https:{{env "DOMAINNAME"}}" #CSP takes care of this but may be needed for organizr.
         contentTypeNosniff: true
         browserXssFilter: true
         # sslForceHost: true # add sslHost to all of the services
@@ -57,7 +57,7 @@ http:
 
     middlewares-authelia:
       forwardAuth:
-        address: "http://authelia:9091/api/verify?rd=https://authelia.adamradloff.com"
+        address: "http://authelia:9091/api/verify?rd=https://authelia.adamradloff.com/#/"
         trustForwardHeader: true
         authResponseHeaders:
           - "Remote-User"
@@ -72,6 +72,6 @@ http:
         maxResponseBodyBytes: 2000000
         maxRequestBodyBytes: 10485760  
         memRequestBodyBytes: 2097152  
-        maxResponseBodyBytes: 10485760
+          #maxResponseBodyBytes: 10485760
         memResponseBodyBytes: 2097152
         retryExpression: "IsNetworkError() && Attempts() <= 2"
