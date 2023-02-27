@@ -796,6 +796,7 @@ services:
     environment:
       GF_INSTALL_PLUGINS: "grafana-clock-panel,grafana-simple-json-datasource,grafana-worldmap-panel,grafana-piechart-panel"
       GF_PANELS_DISABLE_SANITIZE_HTML: true
+      TZ: ${TZ}    
     labels:
       - "traefik.enable=true"
       ## HTTP Routers
@@ -806,7 +807,24 @@ services:
       ## HTTP Services
       - "traefik.http.routers.grafana-rtr.service=grafana-svc"
       - "traefik.http.services.grafana-svc.loadbalancer.server.port=3000"
-
+      
+  sql-server-db:
+    container_name: sql
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    networks:
+      - t2_proxy
+    ports:
+      - "1433:1433"
+    user: root
+    volumes:
+      - ${DOCKERDIR}/appdata/mssql/data:/var/opt/mssql/data
+    environment:
+      PUID: ${PUID}
+      PGID: ${PGID}
+      SA_PASSWORD: "!!54testpassword45!!"
+      ACCEPT_EULA: "Y"
+      TZ: $TZ
+      
   prometheus:
     <<: *common-keys-monitoring # See EXTENSION FIELDS at the top
     image: prom/prometheus:latest
@@ -1030,7 +1048,7 @@ services:
     <<: *common-keys-adsb
     environment:
       - BEASTHOST=beast.${DOMAINLOCAL}
-      - TZ=${TZ}
+        #- TZ=${TZ}
       - FR24KEY=${FR24_SHARING_KEY}
     tmpfs:
       - /var/log
@@ -1198,14 +1216,16 @@ services:
     environment:
       - VRS_ADMIN_USERNAME=${VRS_USER}
       - VRS_ADMIN_PASSWORD=${VRS_PASSWORD}
-      #- VRS_CULTURE=en-US
+      - VRS_CULTURE=en-US
+      - VRS_DB_UPDATE_POLICY_FULLAUTO=yes
+      - TZ=Etc/UTC
     tmpfs:
       - /tmp:rw,nosuid,nodev,noexec,relatime,size=128M
     volumes:
       - "$DOCKERDIR/appdata/vrs/root:/root/.local/share/VirtualRadar"
       - "$DOCKERDIR/appdata/vrs/config:/config"
       - "/etc/localtime:/etc/localtime:ro"
-      - "/etc/timezone:/etc/timezone:ro"
+        # - "/etc/timezone:/etc/timezone:ro"
     labels:
       - "traefik.enable=true"
       ## HTTP Routers
