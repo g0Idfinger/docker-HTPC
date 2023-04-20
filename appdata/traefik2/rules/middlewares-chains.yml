@@ -7,7 +7,6 @@ http:
           - middlewares-https-redirectscheme
           - middlewares-secure-headers
           - middlewares-compress
-
     chain-basic-auth:
       chain:
         middlewares:
@@ -42,4 +41,11 @@ http:
           - middlewares-https-redirectscheme
           - middlewares-secure-headers
           - middlewares-authelia
+          - middlewares-compress
+    chain-vrs-no-auth:
+      chain:
+        middlewares:
+          - middlewares-rate-limit
+          - middlewares-https-redirectscheme
+          - middlewares-vrs-headers
           - middlewares-compress

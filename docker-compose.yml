@@ -61,8 +61,6 @@ secrets:
     file: $DOCKERDIR/secrets/my_email
   plex_claim:
     file: $DOCKERDIR/secrets/plex_claim
-  mysql_root_password:
-    file: $DOCKERDIR/secrets/mysql_root_password
 
 ########################### EXTENSION FIELDS
 # Helps eliminate repetition of sections
@@ -112,7 +110,7 @@ x-common-keys-media: &common-keys-media
   profiles:
     - media
 # Keys common to some of the services in ADS-B-services.txt
-x-common-keys-media: &common-keys-adsb
+x-common-keys-adsb: &common-keys-adsb
   networks:
     - t2_proxy
   security_opt:
@@ -157,6 +155,7 @@ services:
       # Automatically set Host rule for services
       # - --providers.docker.defaultrule=Host(`{{ index .Labels "com.docker.compose.service" }}.$DOMAINNAME`)
       - --providers.docker.exposedByDefault=false
+        #- --providers.docker.disableStrictMIMETICheck=true  
       - --entrypoints.https.http.tls.options=tls-opts@file
       # Add dns-cloudflare as default certresolver for all services. Also enables TLS and no need to specify on individual services
       - --entrypoints.https.http.tls.certresolver=dns-cloudflare
@@ -173,6 +172,7 @@ services:
       - --certificatesResolvers.dns-cloudflare.acme.dnsChallenge.provider=cloudflare
       - --certificatesResolvers.dns-cloudflare.acme.dnsChallenge.resolvers=1.1.1.1:53,1.0.0.1:53
       - --certificatesResolvers.dns-cloudflare.acme.dnsChallenge.delayBeforeCheck=90 # To delay DNS check and reduce LE hitrate
+      - --serversTransport.insecureSkipVerify=true
     networks:
       t2_proxy:
         ipv4_address: 192.168.90.254 # You can specify a static IP
@@ -210,7 +210,7 @@ services:
       - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
       # HTTP Routers
-      - "traefik.http.routers.traefik-rtr.tls=true"
+      #- "traefik.http.routers.traefik-rtr.tls=true"
       - "traefik.http.routers.traefik-rtr.entrypoints=https"
       - "traefik.http.routers.traefik-rtr.rule=Host(`traefik.$DOMAINNAME`)"
       - "traefik.http.routers.traefik-rtr.tls.domains[0].main=$DOMAINNAME"
@@ -553,10 +553,8 @@ services:
   # Set HTTP Root in Tautulli settings if using PathPrefix
   tautulli:
     <<: *common-keys-media
-    image: linuxserver/tautulli:latest
+    image: lscr.io/linuxserver/tautulli:latest
     container_name: tautulli
-    networks:
-      - t2_proxy
     volumes:
       - $DOCKERDIR/appdata/tautulli/config:/config
       - $DOCKERDIR/appdata/plexms/Library/Application Support/Plex Media Server/Logs:/logs:ro
@@ -566,7 +564,7 @@ services:
       - "traefik.enable=true"
     ## HTTP Routers Auth Bypass
       - "traefik.http.routers.tautulli-rtr-bypass.entrypoints=https"
-      - "traefik.http.routers.tautulli-rtr-bypass.rule=Headers(`X-Api-Key`, `$TAUTULLI_DEVICE_KEY`) || Query(`apikey`, `$TAUTULLI_DEVICE_KEY`)"
+      - "traefik.http.routers.tautulli-rtr-bypass.rule=Host(`tautulli.$DOMAINNAME`) && (Headers(`X-Api-Key`, `$TAUTULLI_DEVICE_KEY`) || Query(`apikey`, `$TAUTULLI_DEVICE_KEY`))"
       - "traefik.http.routers.tautulli-rtr-bypass.priority=100"
         ## HTTP Routers
       - "traefik.http.routers.tautulli-rtr.entrypoints=https"
@@ -722,6 +720,26 @@ services:
       DNS_SERVER: 172.16.0.2
       
 ### UniFi Controller - Managing UniFi Network
+  traefik-ssl-certificate-exporter:
+    image: rafi0101/traefik-ssl-certificate-exporter:latest
+    environment:
+      CRON_TIME: "* * * * *"
+      CERT_OWNER_ID: "0"
+      CERT_GROUP_ID: "1000"
+    volumes:
+      - $DOCKERDIR/appdata/traefik2/acme/acme.json:/app/traefik/acme.json
+      - $DOCKERDIR/appdata/unifi/cert:/app/certs
+    restart: unless-stopped
+  mongo_unifi:
+    container_name: mongo
+    image: mongo:3.6
+    networks:
+      - t2_proxy
+    restart: always
+    volumes:
+      - $DOCKERDIR/appdata/mongo_db:/data/db
+      - $DOCKERDIR/appdata/mongo/dbcfg:/data/configdb
+    command: mongod --port 29718
   unifi:
     container_name: unifi
     image: jacobalberty/unifi:latest
@@ -738,15 +756,19 @@ services:
       - "10001:10001/udp"
       - "6789:6789"
     volumes:
-      - $DOCKERDIR/appdata/unifi:/unifi
-      - $DOCKERDIR/appdata/unifi/data:/unifi/data
-      - $DOCKERDIR/appdata/unifi/log:/unifi/log
-      - $DOCKERDIR/appdata/unifi/cert:/unifi/cert
-      - $DOCKERDIR/appdata/unifi/init:/unifi/init.d
-      - $DOCKERDIR/appdata/unifi/run:/var/run/unifi
-      - $DOCKERDIR/shared/certs/key.pem:/unifi/cert/privkey.pem
-      - $DOCKERDIR/shared/certs/cert.pem:/unifi/cert/cert.pem
+      - $DOCKERDIR/appdata/unifi.bak:/unifi
+      - $DOCKERDIR/appdata/unifi.bak/data:/unifi/data
+      - $DOCKERDIR/appdata/unifi.bak/log:/unifi/log
+      - $DOCKERDIR/appdata/unifi.bak/cert:/unifi/cert
+      - $DOCKERDIR/appdata/unifi.bak/init:/unifi/init.d
+      - $DOCKERDIR/appdata/unifi.bak/run:/var/run/unifi
+      - $DOCKERDIR/appdata/unifi.bak/backup:/unifi/data/backup
+        #- $DOCKERDIR/shared/certs/key.pem:/unifi/cert/privkey.pem
+        #- $DOCKERDIR/shared/certs/cert.pem:/unifi/cert/cert.pem
     environment:
+      DB_URI: mongodb://mongo:29718/unifi
+      STATDB_URI: mongodb://mongo:29718/unifi_stat
+      DB_NAME: unifi
       UNIFI_UID: $PUID
       UNIFI_GID: $PGID
       TZ: America/Phoenix
@@ -756,12 +778,13 @@ services:
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.unifi-rtr.entrypoints=https"
-      - "traefik.http.routers.unifi-rtr.rule=HostHeader(`uni.$DOMAINNAME`)"
+      - "traefik.http.routers.unifi-rtr.rule=Host(`uni.$DOMAINNAME`)"
       ## Middlewares
       - "traefik.http.routers.unifi-rtr.middlewares=chain-authelia@file"
       ## HTTP Services
       - "traefik.http.routers.unifi-rtr.service=unifi-svc"
       - "traefik.http.services.unifi-svc.loadbalancer.server.port=8443"
+      - "traefik.http.services.unifi-svc.loadbalancer.server.scheme=https"
 
   flaresolverr:
     # DockerHub mirror flaresolverr/flaresolverr:latest
@@ -796,7 +819,6 @@ services:
     environment:
       GF_INSTALL_PLUGINS: "grafana-clock-panel,grafana-simple-json-datasource,grafana-worldmap-panel,grafana-piechart-panel"
       GF_PANELS_DISABLE_SANITIZE_HTML: true
-      TZ: ${TZ}    
     labels:
       - "traefik.enable=true"
       ## HTTP Routers
@@ -818,12 +840,14 @@ services:
     user: root
     volumes:
       - ${DOCKERDIR}/appdata/mssql/data:/var/opt/mssql/data
+      - ${DATADIR}/mssql:/var/opt/mssql/data/bak
     environment:
       PUID: ${PUID}
       PGID: ${PGID}
       SA_PASSWORD: "!!54testpassword45!!"
       ACCEPT_EULA: "Y"
-      TZ: $TZ
+      TZ: Etc/UTC
+      MSSQL_AGENT_ENABLED: true
       
   prometheus:
     <<: *common-keys-monitoring # See EXTENSION FIELDS at the top
@@ -881,51 +905,7 @@ services:
       ## HTTP Services
       - "traefik.http.routers.influx-rtr.service=influx-svc"
       - "traefik.http.services.influx-svc.loadbalancer.server.port=8086"
-        
-  dump1090-exporter:
-    image: clawsicus/dump1090exporter:latest
-    container_name: dump1090e
-    <<: *common-keys-monitoring
-    command:
-      - '--resource-path=http://tar1090/data'
-      - '--latitude=${FEEDER_LAT}'
-      - '--longitude=${FEEDER_LONG}'
-    #ports:
-      #- 9105:9105
-    labels:
-      - "traefik.enable=true"
-      ## HTTP Routers
-      - "traefik.http.routers.dump1090e-rtr.entrypoints=https"
-      - "traefik.http.routers.dump1090e-rtr.rule=Host(`dump1090e.$DOMAINNAME`)"
-      ## Middlewares
-      - "traefik.http.routers.dump1090e-rtr.middlewares=chain-authelia@file"
-      ## HTTP Services
-      - "traefik.http.routers.dump1090e-rtr.service=dump1090e-svc"
-      - "traefik.http.services.dump1090e-svc.loadbalancer.server.port=9105"
-  piaware-exporter:
-    image: clawsicus/dump1090exporter:lastest
-    container_name: piaware-e
-    networks:
-      - t2_proxy
-    security_opt:
-      - no-new-privileges:true
-    restart: always
-    command:
-      - '--resource-path=http://piaware:8080/data'
-      - '--latitude=${FEEDER_LAT}'
-      - '--longitude=${FEEDER_LONG}'
-    #ports:
-      #- 9105:9105
-    labels:
-      - "traefik.enable=true"
-      ## HTTP Routers
-      - "traefik.http.routers.dump1090e-rtr.entrypoints=https"
-      - "traefik.http.routers.dump1090e-rtr.rule=Host(`dump1090e.$DOMAINNAME`)"
-      ## Middlewares
-      - "traefik.http.routers.dump1090e-rtr.middlewares=chain-authelia@file"
-      ## HTTP Services
-      - "traefik.http.routers.dump1090e-rtr.service=dump1090e-svc"
-      - "traefik.http.services.dump1090e-svc.loadbalancer.server.port=9105"
+
   node-exporter:
     container_name: node_exporter
     image: quay.io/prometheus/node-exporter:latest
@@ -947,99 +927,10 @@ services:
         #- 9101:9101
     command: [
       "--piaware_host",
-      "192.168.90.13"
+      "piaware"
     ]
 
 ######## ADSB #######
-
-  tar1090:
-    image: ghcr.io/sdr-enthusiasts/docker-tar1090:latest
-    tty: true
-    container_name: tar1090
-    <<: *common-keys-adsb
-    environment:
-      - UPDATE_TAR1090=true
-      - TZ=${TZ}
-      - BEASTHOST=beast.${DOMAINLOCAL}
-      - LAT=${FEEDER_LAT}
-      - LONG=${FEEDER_LONG}
-      - TAR1090_DEFAULTCENTERLAT=${FEEDER_LAT}
-      - TAR1090_DEFAULTCENTERLON=${FEEDER_LONG}
-      - MLATHOST=mlathub
-      - ENABLE_978=yes
-      - "URL_978=http://beast.${DOMAINLOCAL}:30980/skyaware978"
-    volumes:
-      - "$DOCKERDIR/appdata/1090/heatmap:/var/globe_history"
-      - "$DOCKERDIR/appdata/1090/timelapse:/var/timelapse1090"
-      - "$DOCKERDIR/appdata/1090/collectd:/var/lib/collectd"
-      - /proc/diskstats:/proc/diskstats:ro
-    tmpfs:
-      - /run:exec,size=64M
-      - /var/log
-    labels:
-      - "traefik.enable=true"
-      ## HTTP Routers
-      - "traefik.http.routers.1090-rtr.entrypoints=https"
-      - "traefik.http.routers.1090-rtr.rule=HostHeader(`1090.$DOMAINNAME`)"
-      ## Middlewares
-      - "traefik.http.routers.1090-rtr.middlewares=chain-authelia@file"
-      ## HTTP Services
-      - "traefik.http.routers.1090-rtr.service=1090-svc"
-      - "traefik.http.services.1090-svc.loadbalancer.server.port=80"
-        #- "traefik.http.services.1090-svc.loadbalancer.server.scheme=https"
-
-  adsbx:
-    image: ghcr.io/sdr-enthusiasts/docker-adsbexchange:latest
-    tty: true
-    container_name: adsbx
-    <<: *common-keys-adsb
-    environment:
-      - BEASTHOST=beast.${DOMAINLOCAL}
-      - LAT=${FEEDER_LAT}
-      - LONG=${FEEDER_LONG}
-      - ALT=${FEEDER_ALT_M}m
-      - SITENAME=${ADSBX_SITENAME}
-      - UUID=${ADSBX_UUID}
-      - TZ=${TZ}
-    tmpfs:
-      - /run:exec,size=64M,uid=1000,gid=1000
-      - /var/log
-
-  multifeeder:
-    image: ghcr.io/sdr-enthusiasts/docker-multifeeder
-    tty: true
-    container_name: multifeeder
-    hostname: multifeeder
-    <<: *common-keys-adsb
-    environment:
-      - TZ=${TZ}
-      - READSB_NET_CONNECTOR=beast.${DOMAINLOCAL},30005,beast_in;beast.${DOMAINLOCAL},30978,raw_in;feed.adsb.fi,30004,beast_reduce_plus_out;feed.adsb.one,64004,beast_reduce_plus_out;in.adsb.lol,30004,beast_reduce_plus_out
-      - UUID=fb259d69-565e-4f5e-91c5-25ea37f0c796
-      - MLAT_CONFIG=feed.adsb.fi,31090,39000;feed.adsb.one,64006,39001;in.adsb.lol,31090,39002;feed.theairtraffic.com,31090,39003;
-      - READSB_LAT=${FEEDER_LAT}
-      - READSB_LON=${FEEDER_LONG}
-      - READSB_ALT=${FEEDER_ALT_M}m
-    tmpfs:
-      - /run/readsb
-      - /var/log
-
-  mlathub:
-    image: ghcr.io/sdr-enthusiasts/docker-readsb-protobuf:latest
-    tty: true
-    container_name: mlathub
-    hostname: mlathub
-    <<: *common-keys-adsb
-    ports:
-      - 30105:30105
-    environment:
-      - TZ=$TZ
-      - DISABLE_PERFORMANCE_GRAPHS=true
-      - DISABLE_WEBAPP=true
-      - READSB_NET_ENABLE=true
-      - READSB_NET_ONLY=true
-      - READSB_FORWARD_MLAT=true
-      - READSB_NET_CONNECTOR=piaware,30105,beast_in;adsbx,30105,beast_in;rbfeeder,30105,beast_in;multifeeder,39000,beast_in;multifeeder,39001,beast_in;multifeeder,39002,beast_in;multifeeder,39003,beast_in
-      - READSB_NET_BEAST_OUTPUT_PORT=30105
 
   fr24:
     image: ghcr.io/sdr-enthusiasts/docker-flightradar24:latest
@@ -1048,8 +939,10 @@ services:
     <<: *common-keys-adsb
     environment:
       - BEASTHOST=beast.${DOMAINLOCAL}
-        #- TZ=${TZ}
+      - TZ=${TZ}
       - FR24KEY=${FR24_SHARING_KEY}
+    healthcheck:
+      disable: true
     tmpfs:
       - /var/log
     labels:
@@ -1057,7 +950,7 @@ services:
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.fr-rtr.entrypoints=https"
-      - "traefik.http.routers.fr-rtr.rule=HostHeader(`fr.$DOMAINNAME`)"
+      - "traefik.http.routers.fr-rtr.rule=Host(`fr.$DOMAINNAME`)"
       ## Middlewares
       - "traefik.http.routers.fr-rtr.middlewares=chain-authelia@file"
       ## HTTP Services
@@ -1069,6 +962,8 @@ services:
     tty: true
     container_name: piaware
     <<: *common-keys-adsb
+    ports:
+      - 44441:30105
     environment:
       - PUID=$PUID
       - PGID=$PGID
@@ -1083,6 +978,8 @@ services:
       - UAT_RECEIVER_HOST=beast.${DOMAINLOCAL}
       - UAT_RECEIVER_PORT=30978
       #- MLAT_RESULTS_BEASTHOST=mlathub
+    healthcheck:
+      disable: true
     volumes:
       - $DOCKERDIR/appdata/piaware/piaware.conf:/etc/piaware.conf
     tmpfs:
@@ -1093,7 +990,7 @@ services:
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.sa-rtr.entrypoints=https"
-      - "traefik.http.routers.sa-rtr.rule=HostHeader(`sa.$DOMAINNAME`)"
+      - "traefik.http.routers.sa-rtr.rule=Host(`sa.$DOMAINNAME`)"
       ## Middlewares
       - "traefik.http.routers.sa-rtr.middlewares=chain-authelia@file"
       ## HTTP Services
@@ -1115,6 +1012,8 @@ services:
     tty: true
     container_name: rbfeeder
     <<: *common-keys-adsb
+    ports:
+      - 44442:30105
     environment:
       - BEASTHOST=beast.${DOMAINLOCAL}
       - LAT=${FEEDER_LAT}
@@ -1133,6 +1032,8 @@ services:
     container_name: radarvirtuel
     hostname: radarvirtuel
     <<: *common-keys-adsb
+    ports:
+      - 44443:30105
     environment:
       - FEEDER_KEY=${RV_FEEDER_KEY}
       - SOURCE_HOST=beast.${DOMAINLOCAL}:30002
@@ -1185,7 +1086,7 @@ services:
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.pf-rtr.entrypoints=https"
-      - "traefik.http.routers.pf-rtr.rule=HostHeader(`pf.$DOMAINNAME`)"
+      - "traefik.http.routers.pf-rtr.rule=Host(`pf.$DOMAINNAME`)"
       ## Middlewares
       - "traefik.http.routers.pf-rtr.middlewares=chain-authelia@file"
       ## HTTP Services
@@ -1208,31 +1109,36 @@ services:
       - /run:exec,size=64M
       - /var/log
   vrs:
-    image: rhodan76/vrs:dev
+    image: ghcr.io/sdr-enthusiasts/vrs:dev
     tty: true
     container_name: vrs
-    hostname: vrs
     <<: *common-keys-adsb
     environment:
       - VRS_ADMIN_USERNAME=${VRS_USER}
       - VRS_ADMIN_PASSWORD=${VRS_PASSWORD}
       - VRS_CULTURE=en-US
       - VRS_DB_UPDATE_POLICY_FULLAUTO=yes
-      - TZ=Etc/UTC
+      - VRS_ENHANCED_LAYERS_COUNTRY=USAAZ
+      - VRS_ENHANCED_MARKERS=normal
+      - VRS_ENHANCED_LAYERS_OPENWX_APIKEY=ed74f5f1692d5c51333fb52647ed1a72
+      - VRS_ENHANCED_LAYERS_OPENAIP_APIKEY=8c48c5bab93ab7426e33c63e0f2da961
     tmpfs:
       - /tmp:rw,nosuid,nodev,noexec,relatime,size=128M
+    ports:
+      - 8181:8080
     volumes:
-      - "$DOCKERDIR/appdata/vrs/root:/root/.local/share/VirtualRadar"
-      - "$DOCKERDIR/appdata/vrs/config:/config"
-      - "/etc/localtime:/etc/localtime:ro"
+      - "$DOCKERDIR/appdata/vrs:/root/.local/share/VirtualRadar"
+        #- "$DOCKERDIR/appdata/vrs/config:/config"
+        # - "/etc/localtime:/etc/localtime:ro"
         # - "/etc/timezone:/etc/timezone:ro"
     labels:
       - "traefik.enable=true"
       ## HTTP Routers
+      #- "traefik.http.routers.vrs-rtr.tls=true"
       - "traefik.http.routers.vrs-rtr.entrypoints=https"
-      - "traefik.http.routers.vrs-rtr.rule=HostHeader(`vrs.$DOMAINNAME`)"
+      - "traefik.http.routers.vrs-rtr.rule=Host(`vrs.$DOMAINNAME`)"
       ## Middlewares
-      - "traefik.http.routers.vrs-rtr.middlewares=chain-no-auth@file"
+      - "traefik.http.routers.vrs-rtr.middlewares=chain-vrs-no-auth@file"  
       ## HTTP Services
       - "traefik.http.routers.vrs-rtr.service=vrs-svc"
       - "traefik.http.services.vrs-svc.loadbalancer.server.port=8080"
@@ -1270,7 +1176,7 @@ services:
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.planefence-rtr.entrypoints=https"
-      - "traefik.http.routers.planefence-rtr.rule=HostHeader(`planefence.$DOMAINNAME`)"
+      - "traefik.http.routers.planefence-rtr.rule=Host(`planefence.$DOMAINNAME`)"
       ## Middlewares
       - "traefik.http.routers.planefence-rtr.middlewares=chain-no-auth@file"
       ## HTTP Services
@@ -1288,14 +1194,175 @@ services:
       - MAP_ARGS=zoom=11&hideSidebar&hideButtons&mapDim=2.0&monochromeMarkers=ff0000&outlineColor=505050&iconScale=1.5
       #- MAP_ARGS=zoom=11&hideSidebar&hideButtons&mapDim=0.4&monochromeMarkers=00066&monochromeTracks=010101&outlineColor=505050&iconScale=1.5
       - LOAD_SLEEP_TIME=10
-      - BASE_URL=http://tar1090
+      - BASE_URL=http://beast.adamradloff.local:8080
     labels:
       - "traefik.enable=true"
       ## HTTP Routers
       - "traefik.http.routers.pss-rtr.entrypoints=https"
-      - "traefik.http.routers.pss-rtr.rule=HostHeader(`pss.$DOMAINNAME`)"
+      - "traefik.http.routers.pss-rtr.rule=Host(`pss.$DOMAINNAME`)"
       ## Middlewares
       - "traefik.http.routers.pss-rtr.middlewares=chain-authelia@file"
       ## HTTP Services
       - "traefik.http.routers.pss-rtr.service=pss-svc"
       - "traefik.http.services.pss-svc.loadbalancer.server.port=80"
+####### testing web landing page #########
+
+  webproxy:
+    image: ghcr.io/sdr-enthusiasts/docker-reversewebproxy:latest
+    tty: true
+    container_name: webproxy
+    hostname: webproxy
+    restart: always
+    networks:
+      - t2_proxy
+    #ports:
+    #  - 80:80
+    #  - 443:443
+    environment:
+      # ----------------------------------------------------------------------------------------
+      # if AUTOGENERATE is set to ON, it will automatically create a config based on the REVPROXY and REDIRECT parameters below
+      # if it is set to OFF, you should map the volume as shown in the "volumes" section below, and you can edit the "locations.conf" file in that directory.
+      #
+      # If you want to have the system auto-generate a locations.conf file that you will subsequently edit, you can set
+      # AUTOGENERATE=ON, then start the container once, stop the container again, and edit the system generated
+      # locations.conf file. Then, before restarting, please make sure to set AUTOGENERATE=OFF below.
+      - AUTOGENERATE=ON
+      # ----------------------------------------------------------------------------------------
+      # VERBOSELOGS indicates if the web server logs are written to the Docker Container logs
+      # (accessible with `docker logs webproxy`) or that they are discarded. Values are ON (default) or OFF
+      - VERBOSELOG=ON
+      # ----------------------------------------------------------------------------------------
+      # REVPROXY has the following format:
+      #     urltarget,destination
+      # For example, for REVPROXY=readsb|http://10.0.0.191:8080,
+      # a user browsing to http://mydomain/readsb will be proxied to http://10.0.0.191:8080
+      # The user's browser will *never* see the internal IP address.
+      # Note - both the urltarget and the destination must be URLs or directories, and cannot be
+      # a file name
+      # Optionally, you can add Basic Authentication username(s)/password(s) as well. If the AUTH parameter is set to ON,
+      # any REVPROXY entries that have one or more username/password combinations will only be proxied after the web browser
+      # furnishes the correct credentials. If AUTH is not set to ON, these credentials will be ignored.
+      # Usernames and passwords should not contain any field separators or special characters like ,'"|; or whitespace characters
+      # For example: REVPROXY=readsb|http://10.0.0.191:8080|username1;password1|username2;password2,
+      - REVPROXY=
+                 readsb|https://readsb.$DOMAINNAME,
+                 piaware|https://pi.$DOMAINNAME,
+                 tar1090|https://1090.$DOMAINNAME,
+                 planefence|https://planefence.$DOMAINNAME,
+                 planefinder|https://pf.$DOMAINNAME
+      # ----------------------------------------------------------------------------------------
+      # REDIRECT has the following format:
+      #     urltarget|redirection
+      # For example, for REDIRECT=/planefinder/setup.html|http://10.0.0.191:8086/setup.html,
+      # a user browing to http://mydomain/planefinder/setup.html will be redirected to http://10.0.0.191:8086/setup.html
+      # The user's browser will show the redirection address and try to reach it. If the destination is not reachable (for example
+      # because it is on a isolated subnet), the browser won't be able to render the page.
+      # This can be useful if you want to protect certain pages from view outside your internal network, while exposing
+      # others. See for example the planefinder setup in REVPROXY and REDIRECT.
+      # Note - both the urltarget and the redirection MAY BE a URL or a file names.
+      - REDIRECT=
+                 /planefinder/setup.html|http://10.0.0.191:8086/setup.html,
+                 /planefinder/logs.html|http://10.0.0.191:8086/logs.html
+      #
+      # ----------------------------------------------------------------------------------------
+      # The following settings will enable SSL to be part of the reverse proxy.
+      #
+      # SSL: enable SSL. Accepted values: [ENABLED|DISABLED]. Default: DISABLED
+      # SSL_EMAIL is used to request an SSL certificate from Let's Encrypt. The container
+      # will automatically renew them before the expire as long as you keep the container running.
+      #
+      # Change SSL_TOS=REJECT to SSL_TOS=ACCEPT to indicate you accept the T&S's for the SSL certificate
+      # set forth at https://letsencrypt.org/repository/#let-s-encrypt-subscriber-agreement
+      #
+      # If SSL_REDIRECT=ENABLED then all incoming non-SSL requests will automatically be redirected to a https:// request
+      #
+      # Put 1 or more domain names in SSL_DOMAIN. Note that *ALL OF THESE DOMAINS* must be reachable from the internet
+      # and render a website that is served from the container upon the start of the container,
+      # otherwise the request to get a certificate for them will fail!
+      #
+      # Also note that more than 5 (failed) requests will cause you to be locked out from getting new certificates for
+      # 1 week. We, nor LetsEncrypt, can "unlock" you. More info: https://letsencrypt.org/docs/rate-limits/
+      #
+      - SSL=DISABLED
+      #- SSL_EMAIL=your@email.com
+      #- SSL_DOMAIN=
+      #           my.domain.com,
+      #           my.second.domain.com,
+      #           my.third.domain.com
+      #- SSL_TOS=ACCEPT
+      #- SSL_REDIRECT=ENABLED
+      #
+      # These settings will enable GeoIP inclusion or exclusion of requests based on country.
+      # Country names are two-letter abbreviations corresponding to the country suffix used in domain names.
+      # GEOIP_DEFAULT is "allow" (allow all except for country list)
+      #                  "block" (block all except for country list)
+      #                  <empty> no GeoIP blocking
+      # GEOIP_RESPONSECODE indicates which HTTP response is sent when a bot is blocked.
+      # Default code if omitted is 403 (Forbidden). Other codes that may be useful:
+      # 402 (payment required, hehe), 404 (doesnt exist), 418 (I am a teapot - used to tell requestors to go away), 410 (Gone), 500 (Internal Server Error),
+      # 503 (service unavailable), etc - see https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
+      - GEOIP_RESPONSECODE=418
+      - GEOIP_DEFAULT=allow
+      - GEOIP_COUNTRIES=cn,ru
+      #
+      # AUTH -- a basic mechanism to use basic authentication
+      #
+      # Although it's possible to put the usernames and passwords here, we strongly advice to put them in a variable in a `.env` file
+      # AUTH=ON -- Basic Authentication is enabled
+      # AUTH=OFF or not defined or empty -- Basic Authentication is disabled
+      #
+      # Add credentials usernames for the local web serverlike this: (note -- this parameter structure is not yet future proof and may change when we add per-website authentication)
+      # LOCA_CREDS=<username1>|<password1>,<username2>|<password2>,...
+      # Local Credentials work only for the local website. If you want to define a credential for a specific
+      # REVPROXY destination, you can do so with the REVPROXY parameter (see above).
+      # You cannot use Basic Authentication for a REDIRECT entry; this should be implemented by the target website instead.
+      #
+      #
+      - AUTH=OFF
+      #LOCAL_CREDS=
+      #
+      # BLOCKBOT blocks bots of which the User Agent contains all or part of these comma-separated strings:
+      - BLOCKBOT=
+                 bot,LieBaoFast,UCBrowser,MQQBrowser,Mb2345Browser,https://gdnplus.com,facebookexternalhit,google,bing,yandex,msnbot,wp-login.php,zgrab,zgrab2,
+                 AltaVista,Googlebot,Slurp,BlackWidow,Bot,ChinaClaw,Custo,DISCo,Download,Demon,eCatch,EirGrabber,EmailSiphon,EmailWolf,SuperHTTP,Surfbot,WebWhacker,
+                 Express,WebPictures,ExtractorPro,EyeNetIE,FlashGet,GetRight,GetWeb!,Go!Zilla,Go-Ahead-Got-It,GrabNet,Grafula,HMView,Go!Zilla,Go-Ahead-Got-It,
+                 rafula,HMView,HTTrack,Stripper,Sucker,Indy,InterGET,Ninja,JetCar,Spider,larbin,LeechFTP,Downloader,tool,Navroad,NearSite,NetAnts,tAkeOut,WWWOFFLE,
+                 GrabNet,NetSpider,Vampire,NetZIP,Octopus,Offline,PageGrabber,Foto,pavuk,pcBrowser,RealDownload,ReGet,SiteSnagger,SmartDownload,SuperBot,WebSpider,
+                 Teleport,VoidEYE,Collector,WebAuto,WebCopier,WebFetch,WebGo,WebLeacher,WebReaper,WebSauger,eXtractor,Quester,WebStripper,WebZIP,Widow,Zeus,
+                 Twengabot,htmlparser,libwww,Python,perl,urllib,scan,email,PycURL,Pyth,PyQ,WebCollector,WebCopy,webcraw,PetalBot,ubermetrics,Firefox/45,
+                 Vert.x-WebClient,jsonlite,rv:45.0,Nexgate Ruby Client,scoop.it,NetSystemsResearch,Barkrowler,Python-Requests,Expanse,Go-http-client,scpitspi-rs
+      #
+      # BLOCKBOT_RESPONSECODE indicates which HTTP response is sent when a bot is blocked.
+      # Default code if omitted is 403 (Forbidden). Other codes that may be useful:
+      # 402 (payment required, hehe), 404 (doesnt exist), 418 (I am a teapot - used to tell requestors to go away), 410 (Gone), 500 (Internal Server Error),
+      # 503 (service unavailable), etc - see https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
+      - BLOCKBOT_RESPONSECODE=403
+      #
+      # IPV6 indicates if IPV6 is enabled or disabled on the host and/or docker system.
+      # If you disable IPV6 on your system, you may see a container error if you don't set this parameter to "OFF" or "DISABLED" (case insensitive).
+      # If the parameter is omitted, the system will assume that IPV6 is enabled.
+      - IPV6=ENABLED
+      #
+      # IPTABLES_BLOCK switches `iptables` based blocking of IP addresses on or off. Default when omitted = off.
+      # See README.md for more explanation. Note -- in order for this to work, you MUST add the NET_ADMIN capacity to the container as shown below.
+      - IPTABLES_BLOCK=ENABLED
+      - IPJAILTIME=21600
+    cap_add:
+      - NET_ADMIN
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,relatime,size=128M
+      - /var/log/nginx:rw,nosuid,nodev,noexec,relatime,size=128M
+    volumes:
+      - $DOCKERDIR/appdata/webproxy:/run/nginx
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.www-rtr.entrypoints=https"
+      - "traefik.http.routers.www-rtr.rule=Host(`www.$DOMAINNAME`, `www.$DOMAINNAME`)"
+      ## Middlewares
+      - "traefik.http.routers.www-rtr.middlewares=chain-no-auth@file"
+      ## HTTP Services
+      - "traefik.http.routers.www-rtr.service=www-svc"
+      - "traefik.http.services.www-svc.loadbalancer.server.port=80"
