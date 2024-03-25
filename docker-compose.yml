@@ -1,5 +1,3 @@
-version: "3.9"
-
 ######### IMPORTANT #############
 # This is my main docker-compose file with most of the apps. I run docker on other systems with smaller stacks (web and synology).
 # You can copy-paste services from one docker-compose file in this repo to another to add other apps.
@@ -263,7 +261,22 @@ services:
       - SYSTEM=0
       - TASKS=1 # Portainer
       - VOLUMES=1 # Portainer
-      
+
+  #### Watchtower
+  watchtower:
+    container_name: watchtower
+    image: containrrr/watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - TZ=$TZ
+      - WATCHTOWER_CLEANUP=true                                        
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+      - WATCHTOWER_POLL_INTERVAL=36000                  
+      #- WATCHTOWER_SCHEDULE=0 0 9 * * *
+      #- WATCHTOWER_DEBUG=true     
+
   #### AUTHENTICATION 
   # Authelia (Lite) - Self-Hosted Single Sign-On and Two-Factor Authentication
   authelia:
@@ -717,7 +730,7 @@ services:
       PROXIED: "true"
       RRTYPE: A
       DELETE_ON_STOP: "false"
-      DNS_SERVER: 172.16.0.2
+      DNS_SERVER: 1.1.1.1
       
 ### UniFi Controller - Managing UniFi Network
   traefik-ssl-certificate-exporter:
@@ -730,16 +743,6 @@ services:
       - $DOCKERDIR/appdata/traefik2/acme/acme.json:/app/traefik/acme.json
       - $DOCKERDIR/appdata/unifi/cert:/app/certs
     restart: unless-stopped
-  mongo_unifi:
-    container_name: mongo
-    image: mongo:3.6
-    networks:
-      - t2_proxy
-    restart: always
-    volumes:
-      - $DOCKERDIR/appdata/mongo_db:/data/db
-      - $DOCKERDIR/appdata/mongo/dbcfg:/data/configdb
-    command: mongod --port 29718
   unifi:
     container_name: unifi
     image: jacobalberty/unifi:latest
@@ -756,24 +759,19 @@ services:
       - "10001:10001/udp"
       - "6789:6789"
     volumes:
-      - $DOCKERDIR/appdata/unifi.bak:/unifi
-      - $DOCKERDIR/appdata/unifi.bak/data:/unifi/data
-      - $DOCKERDIR/appdata/unifi.bak/log:/unifi/log
-      - $DOCKERDIR/appdata/unifi.bak/cert:/unifi/cert
-      - $DOCKERDIR/appdata/unifi.bak/init:/unifi/init.d
-      - $DOCKERDIR/appdata/unifi.bak/run:/var/run/unifi
-      - $DOCKERDIR/appdata/unifi.bak/backup:/unifi/data/backup
+      #- $DOCKERDIR/appdata/unifi:/unifi
+      - $DOCKERDIR/appdata/unifi/data/lib:/var/lib/unifi
+      - $DOCKERDIR/appdata/unifi/log:/var/log/unifi
+      - $DOCKERDIR/appdata/unifi/cert/adamradloff.com:/unifi/cert
+        #- $DOCKERDIR/appdata/unifi/init:/unifi/init.d
+      - $DOCKERDIR/appdata/unifi/run:/var/run/unifi
+      - $DOCKERDIR/appdata/unifi/backup:/unifi/data/backup
         #- $DOCKERDIR/shared/certs/key.pem:/unifi/cert/privkey.pem
         #- $DOCKERDIR/shared/certs/cert.pem:/unifi/cert/cert.pem
     environment:
-      DB_URI: mongodb://mongo:29718/unifi
-      STATDB_URI: mongodb://mongo:29718/unifi_stat
-      DB_NAME: unifi
       UNIFI_UID: $PUID
       UNIFI_GID: $PGID
       TZ: America/Phoenix
-      RUNAS_UID0: "false"
-      BIND_PRIV: "false"
     labels:
       - "traefik.enable=true"
       ## HTTP Routers
@@ -884,8 +882,8 @@ services:
     <<: *common-keys-monitoring
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
-      - DOCKER_INFLUXDB_INIT_BUCKET=readsb
-      - DOCKER_INFLUXDB_INIT_ORG=readsb
+      - DOCKER_INFLUXDB_INIT_BUCKET=ultrafeeder
+      - DOCKER_INFLUXDB_INIT_ORG=ultrafeeder
       #- DOCKER_INFLUXDB_INIT_RETENTION=1y
       - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USER}
       - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD}
@@ -941,6 +939,10 @@ services:
       - BEASTHOST=beast.${DOMAINLOCAL}
       - TZ=${TZ}
       - FR24KEY=${FR24_SHARING_KEY}
+      - FR24KEY_UAT=${FR24_UAT_KEY}
+      - UATHOST=beast.${DOMAINLOCAL}
+      - UATPORT=30978
+      - MLAT=yes
     healthcheck:
       disable: true
     tmpfs:
@@ -977,7 +979,7 @@ services:
       - UAT_RECEIVER_TYPE=relay
       - UAT_RECEIVER_HOST=beast.${DOMAINLOCAL}
       - UAT_RECEIVER_PORT=30978
-      #- MLAT_RESULTS_BEASTHOST=mlathub
+      - MLAT_RESULTS_BEASTHOST=mlat.adamradloff.local
     healthcheck:
       disable: true
     volumes:
@@ -1022,6 +1024,8 @@ services:
       - TZ=${TZ}
       - SHARING_KEY=${RADARBOX_SHARING_KEY}
       - UAT_RECEIVER_HOST=beast.${DOMAINLOCAL}
+    volumes:
+      - "$DOCKERDIR/appdata/rbfeeder/fake_cpuinfo:/proc/cpuinfo"
     tmpfs:
       - /run:exec,size=64M
       - /var/log
@@ -1030,7 +1034,6 @@ services:
     image: ghcr.io/sdr-enthusiasts/docker-radarvirtuel:latest
     tty: true
     container_name: radarvirtuel
-    hostname: radarvirtuel
     <<: *common-keys-adsb
     ports:
       - 44443:30105
@@ -1144,10 +1147,9 @@ services:
       - "traefik.http.services.vrs-svc.loadbalancer.server.port=8080"
 
   planefence:
-    image: kx1t/planefence
+    image: ghcr.io/sdr-enthusiasts/docker-planefence:dev
     tty: true
     container_name: planefence
-    hostname: planefence
     # host and your internal network:
     <<: *common-keys-adsb
     # we are phasing out the .env file in favor of a similar file named
@@ -1187,14 +1189,15 @@ services:
     image: tedder42/browser-screenshot-service:latest
     tty: true
     container_name: screenshot
-    hostname: screenshot
     <<: *common-keys-adsb
     shm_size: 1gb
     environment:
-      - MAP_ARGS=zoom=11&hideSidebar&hideButtons&mapDim=2.0&monochromeMarkers=ff0000&outlineColor=505050&iconScale=1.5
-      #- MAP_ARGS=zoom=11&hideSidebar&hideButtons&mapDim=0.4&monochromeMarkers=00066&monochromeTracks=010101&outlineColor=505050&iconScale=1.5
-      - LOAD_SLEEP_TIME=10
+      - MAP_ARGS=zoom=11.5&hideSidebar&hideButtons&mapDim=0.2&monochromeMarkers=ff0000&outlineColor=505050&iconScale=1.5&enableLabels&extendedLabels=2&trackLabels
+     # - MAP_ARGS=zoom=11&hideSidebar&hideButtons&mapDim=2.0&monochromeMarkers=ff0000&outlineColor=505050&iconScale=1.5
+     #- MAP_ARGS=zoom=11&hideSidebar&hideButtons&mapDim=0.4&monochromeMarkers=00066&monochromeTracks=010101&outlineColor=505050&iconScale=1.5
+      - LOAD_SLEEP_TIME=25
       - BASE_URL=http://beast.adamradloff.local:8080
+      - MAXTIME=60
     labels:
       - "traefik.enable=true"
       ## HTTP Routers
@@ -1205,13 +1208,13 @@ services:
       ## HTTP Services
       - "traefik.http.routers.pss-rtr.service=pss-svc"
       - "traefik.http.services.pss-svc.loadbalancer.server.port=80"
+
 ####### testing web landing page #########
 
   webproxy:
     image: ghcr.io/sdr-enthusiasts/docker-reversewebproxy:latest
     tty: true
     container_name: webproxy
-    hostname: webproxy
     restart: always
     networks:
       - t2_proxy
@@ -1351,9 +1354,10 @@ services:
       - NET_ADMIN
     tmpfs:
       - /tmp:rw,nosuid,nodev,noexec,relatime,size=128M
-      - /var/log/nginx:rw,nosuid,nodev,noexec,relatime,size=128M
+        #- /var/log/nginx:rw,nosuid,nodev,noexec,relatime,size=128M
     volumes:
       - $DOCKERDIR/appdata/webproxy:/run/nginx
+      - $DOCKERDIR/appdata/webproxy/log:/var/log/nginx
       - "/etc/localtime:/etc/localtime:ro"
       - "/etc/timezone:/etc/timezone:ro"
     labels:
@@ -1366,3 +1370,21 @@ services:
       ## HTTP Services
       - "traefik.http.routers.www-rtr.service=www-svc"
       - "traefik.http.services.www-svc.loadbalancer.server.port=80"
+
+  13ft:
+    image: wasimaster/13ft:0.2.3
+    container_name: 13ft
+    #ports:
+      #- "5000:5000"
+    <<: *common-keys-apps
+    labels:
+      - "traefik.enable=true"
+      ## HTTP Routers
+      - "traefik.http.routers.13ft-rtr.entrypoints=https"
+      - "traefik.http.routers.13ft-rtr.rule=Host(`13ft.$DOMAINNAME`, `13ft.$DOMAINNAME`)"
+      ## Middlewares
+      - "traefik.http.routers.13ft-rtr.middlewares=chain-no-auth@file"
+      ## HTTP Services
+      - "traefik.http.routers.13ft-rtr.service=13ft-svc"
+      - "traefik.http.services.13ft-svc.loadbalancer.server.port=5000"
+      
