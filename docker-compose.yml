@@ -639,7 +639,6 @@ services:
       INTERVAL: 30s
       PORT: 9617
 
-
   # Glances - System Information
   glances:
     <<: *common-keys-apps
